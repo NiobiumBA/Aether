@@ -145,9 +145,9 @@ namespace Aether
             NetworkApplication.ServerDispatcher.SendMessageAllRemote(message);
         }
 
-        public static void SetActiveForConnection(ConnectionToClient connection, GameObject obj, bool value)
+        public static void SetActiveForClient(ConnectionToClient connection, GameObject obj, bool value)
         {
-            ThrowHelper.ThrowIfNotServer(nameof(SetActiveForConnection));
+            ThrowHelper.ThrowIfNotServer(nameof(SetActiveForClient));
 
             if (obj == null)
                 throw new ArgumentNullException(nameof(obj));
@@ -191,9 +191,9 @@ namespace Aether
             NetworkApplication.ServerDispatcher.SendMessageAllRemote(message);
         }
 
-        public static void SetEnabledForConnection(ConnectionToClient connection, NetworkBehaviour behaviour, bool value)
+        public static void SetEnabledForClient(ConnectionToClient connection, NetworkBehaviour behaviour, bool value)
         {
-            ThrowHelper.ThrowIfNotServer(nameof(SetEnabledForConnection));
+            ThrowHelper.ThrowIfNotServer(nameof(SetEnabledForClient));
 
             if (behaviour == null)
                 throw new ArgumentNullException(nameof(behaviour));
@@ -268,7 +268,7 @@ namespace Aether
             s_clientCallbacksRegistered = true;
         }
 
-        private static void UnsubscribeClientCallbacks()
+        private static void RemoveClientCallbacks()
         {
             NetworkApplication.ClientDispatcher.RemoveMessageCallback<SpawnMessage>();
             NetworkApplication.ClientDispatcher.RemoveMessageCallback<DestroyMessage>();
@@ -307,27 +307,18 @@ namespace Aether
                 if (SyncObject.EventSystem.EnabledOnServer)
                     SendInitDataAll();
             }
-
-            if (connection is ConnectionToServer and not LocalConnectionToServer)
-            {
-                RegisterClientCallbacks();
-            }
         }
 
-        protected override void Start()
+        protected internal override void ClientStart()
         {
-            base.Start();
-
-            if (NetworkApplication.IsClientOnly)
+            if (NetworkApplication.IsServer == false)
                 RegisterClientCallbacks();
         }
 
         private void OnDestroy()
         {
             if (NetworkApplication.IsClientOnly)
-            {
-                UnsubscribeClientCallbacks();
-            }
+                RemoveClientCallbacks();
 
             if (NetworkApplication.IsServer)
             {

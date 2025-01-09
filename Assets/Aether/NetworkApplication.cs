@@ -9,10 +9,14 @@ namespace Aether
     /// </summary>
     public static class NetworkApplication
     {
+        public static event Action OnClientDispatcherCreate;
+
         /// <summary>
         /// Argument is a new connection.
         /// </summary>
         public static event Action<ConnectionToServer> OnClientConnectionChange;
+
+        public static event Action OnServerDispatcherCreate;
 
         public static event Action<ConnectionToClient> OnServerAddConnection;
 
@@ -25,6 +29,7 @@ namespace Aether
         private static NetworkServerDispatcher s_serverDispatcher;
         private static NetworkTransport s_activeTransport;
 
+        // --- Client
         public static bool IsClient => s_clientDispatcher != null;
 
         public static bool IsClientOnly => IsClient && !IsServer;
@@ -34,12 +39,16 @@ namespace Aether
         public static bool ClientLocalConnected => IsClient && ClientDispatcher.Connection is LocalConnectionToServer;
 
         public static NetworkClientDispatcher ClientDispatcher => s_clientDispatcher;
+        // ---
 
+
+        // --- Server
         public static bool IsServer => s_serverDispatcher != null;
 
         public static bool IsServerOnly => IsServer && !IsClient;
 
         public static NetworkServerDispatcher ServerDispatcher => s_serverDispatcher;
+        // ---
 
         /// <summary>
         /// Connections are monitored through ActiveTransport and link them with dispatchers.
@@ -77,6 +86,8 @@ namespace Aether
             s_clientDispatcher = new NetworkClientDispatcher();
 
             s_clientDispatcher.OnConnectionChange += OnClientConnectionChangeInvoke;
+
+            OnClientDispatcherCreate?.Invoke();
         }
 
         /// <summary>
@@ -102,6 +113,8 @@ namespace Aether
             s_serverDispatcher = new NetworkServerDispatcher();
 
             s_serverDispatcher.OnAddConnection += OnServerAddConnectionInvoke;
+
+            OnServerDispatcherCreate?.Invoke();
         }
 
         /// <summary>

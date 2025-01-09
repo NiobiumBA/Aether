@@ -54,13 +54,19 @@ namespace Aether
 
         protected virtual void OnEnable()
         {
+            NetworkApplication.OnClientDispatcherCreate += OnClientDispatcherCreate;
             NetworkApplication.OnClientConnectionChange += OnClientConnectionChange;
+
+            NetworkApplication.OnServerDispatcherCreate += OnServerDispatcherCreate;
             NetworkApplication.OnServerAddConnection += OnServerAddConnection;
         }
 
         protected virtual void OnDisable()
         {
+            NetworkApplication.OnClientDispatcherCreate -= OnClientDispatcherCreate;
             NetworkApplication.OnClientConnectionChange -= OnClientConnectionChange;
+
+            NetworkApplication.OnServerDispatcherCreate -= OnServerDispatcherCreate;
             NetworkApplication.OnServerAddConnection -= OnServerAddConnection;
         }
 
@@ -69,6 +75,12 @@ namespace Aether
             base.Start();
 
             ConfigureHeadlessFrameRate();
+
+            if (NetworkApplication.IsClient)
+                ForAllNetworkBehaviours(behaviour => behaviour.ClientStart());
+
+            if (NetworkApplication.IsServer)
+                ForAllNetworkBehaviours(behaviour => behaviour.ServerStart());
         }
 
         protected virtual void Update()
@@ -106,6 +118,16 @@ namespace Aether
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = m_serverTickRate;
 #endif
+        }
+
+        private void OnClientDispatcherCreate()
+        {
+            ForAllNetworkBehaviours(behaviour => behaviour.ClientStart());
+        }
+
+        private void OnServerDispatcherCreate()
+        {
+            ForAllNetworkBehaviours(behaviour => behaviour.ServerStart());
         }
 
         private void OnServerAddConnection(ConnectionToClient conn)
