@@ -202,14 +202,26 @@ namespace Aether.Transports
 
         public void StartServer(string address)
         {
-            if (ParseIPAndPort(address, out IPAddress ip, out int port))
+            if (ParseIPAndPort(address, out IPAddress ip, out int port) == false)
+            {
+                ArgumentException exception = new(nameof(address));
+                ServerError error = new(exception);
+                OnTransportErrorEventInvoke(error);
+            }
+            
+            if (ServerStarted)
+                return;
 
-                if (ServerStarted)
-                    return;
-
-            m_selfListener = new TcpListener(ip, port);
-
-            m_selfListener.Start();
+            try
+            {
+                m_selfListener = new TcpListener(ip, port);
+                m_selfListener.Start();
+            }
+            catch (Exception exception)
+            {
+                ServerError error = new(exception);
+                OnTransportErrorEventInvoke(error);
+            }
 
             m_serverStarted = true;
 
