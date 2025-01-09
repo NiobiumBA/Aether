@@ -1,47 +1,24 @@
 using Aether;
-using Aether.Messages;
 using UnityEngine;
 
-public class MouseSpawnObject : NetworkBehaviour
+public class MouseSpawnObject : MonoBehaviour
 {
-    private struct SpawnMessage : INetworkMessage
-    {
-        public Ray ray;
-    }
-
     [SerializeField] private GameObject m_spawnObject;
-
-    protected override void ServerStart()
-    {
-        NetworkApplication.ServerDispatcher.RegisterMessageCallback<SpawnMessage>(Spawn);
-    }
-
-    private void OnDestroy()
-    {
-        if (NetworkApplication.IsServer)
-            NetworkApplication.ServerDispatcher.RemoveMessageCallback<SpawnMessage>();
-    }
 
     private void Update()
     {
-        if (NetworkApplication.IsClient && Input.GetMouseButtonDown(0))
+        if (NetworkApplication.IsServer && Input.GetMouseButtonDown(0))
         {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            Camera cam = Camera.main;
 
-            SpawnMessage spawnMessage = new()
+            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+
+            if (Physics.Raycast(ray) == false)
             {
-                ray = ray
-            };
+                Vector3 pos = ray.GetPoint(5);
 
-            if (Physics.Raycast(ray) == false) // Does not spawn if click on other object
-                NetworkApplication.ClientDispatcher.SendMessage(spawnMessage);
+                NetworkGameObjectInteractions.Spawn(m_spawnObject, pos, Quaternion.identity, transform);
+            }
         }
-    }
-
-    private void Spawn(NetworkConnection conn, SpawnMessage message)
-    {
-        Vector3 pos = message.ray.GetPoint(5);
-
-        NetworkGameObjectInteractions.Spawn(m_spawnObject, pos, Quaternion.identity, transform);
     }
 }
