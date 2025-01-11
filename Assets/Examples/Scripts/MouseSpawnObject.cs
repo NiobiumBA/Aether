@@ -22,9 +22,9 @@ public class MouseSpawnObject : NetworkBehaviour
             NetworkApplication.ServerDispatcher.RemoveMessageCallback<SpawnMessage>();
     }
 
-    private void Update()
+    protected override void ClientUpdate()
     {
-        if (NetworkApplication.IsClient && Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0))
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 
