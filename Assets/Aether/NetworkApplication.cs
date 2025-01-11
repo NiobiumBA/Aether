@@ -1,6 +1,7 @@
 ﻿using Aether.Connections;
 using Aether.Transports;
 using System;
+using System.Linq;
 
 namespace Aether
 {
@@ -127,7 +128,9 @@ namespace Aether
 
             s_serverDispatcher.OnAddConnection -= OnServerAddConnectionInvoke;
 
-            foreach (NetworkConnection conn in s_serverDispatcher.Connections)
+            ConnectionToClient[] copyConnections = s_serverDispatcher.Connections.ToArray();
+
+            foreach (NetworkConnection conn in copyConnections)
             {
                 conn.Disconnect();
             }
@@ -147,8 +150,8 @@ namespace Aether
 
             transport.ClientConnect(null);
 
-            ClientDispatcher.Connection = connectionToServer;
-            ServerDispatcher.AddConnection(connectionToClient);
+            s_clientDispatcher.Connection = connectionToServer;
+            s_serverDispatcher.AddConnection(connectionToClient);
         }
 
         private static void ActiveTransportOnClientConnect()
