@@ -109,7 +109,8 @@ namespace Aether
 
         protected virtual void OnApplicationQuit()
         {
-            DisconnectAll();
+            NetworkApplication.DisableClientDispatcher();
+            NetworkApplication.DisableServerDispatcher();
         }
 
         protected virtual void ConfigureHeadlessFrameRate()
@@ -163,20 +164,6 @@ namespace Aether
             conn.OnForcedDisconnect -= OnDisconnect;
 
             ForAllNetworkBehaviours(behaviour => behaviour.OnDisconnect(conn));
-        }
-
-        private void DisconnectAll()
-        {
-            NetworkApplication.ClientDispatcher?.Connection?.Disconnect();
-
-            if (NetworkApplication.IsServer)
-            {
-                // Use ToArray to copy the collection
-                ConnectionToClient[] connections = NetworkApplication.ServerDispatcher.Connections.ToArray();
-
-                foreach (ConnectionToClient conn in connections)
-                    conn.Disconnect();
-            }
         }
     }
 }
