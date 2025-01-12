@@ -1,6 +1,5 @@
 ﻿using Aether.Connections;
 using System;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
@@ -40,6 +39,9 @@ namespace Aether
 
         [SerializeField] private int m_serverTickRate = 30;
 
+        private bool m_clientStarted = false;
+        private bool m_serverStarted = false;
+
         public virtual int ServerTickRate
         {
             get => m_serverTickRate;
@@ -76,10 +78,10 @@ namespace Aether
 
             ConfigureHeadlessFrameRate();
 
-            if (NetworkApplication.IsClient)
+            if (NetworkApplication.IsClient && m_clientStarted == false)
                 ForAllNetworkBehaviours(behaviour => behaviour.ClientStart());
 
-            if (NetworkApplication.IsServer)
+            if (NetworkApplication.IsServer && m_serverStarted == false)
                 ForAllNetworkBehaviours(behaviour => behaviour.ServerStart());
         }
 
@@ -124,11 +126,13 @@ namespace Aether
         private void OnClientDispatcherCreate()
         {
             ForAllNetworkBehaviours(behaviour => behaviour.ClientStart());
+            m_clientStarted = true;
         }
 
         private void OnServerDispatcherCreate()
         {
             ForAllNetworkBehaviours(behaviour => behaviour.ServerStart());
+            m_serverStarted = true;
         }
 
         private void OnServerAddConnection(ConnectionToClient conn)

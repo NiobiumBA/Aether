@@ -17,7 +17,7 @@ namespace Aether
 
         private static Dictionary<uint, NetworkIdentity> s_sceneIdentities = new();
         private static Dictionary<uint, NetworkIdentity> s_assetIdentities;
-        private static bool s_isSceneLoadedSubscribed = false;
+        private static bool s_sceneEventsSubscribed = false;
 
         public static IReadOnlyDictionary<uint, NetworkIdentity> AssetIdentities
         {
@@ -56,10 +56,10 @@ namespace Aether
                              .ToDictionary(identity => identity.AssetId);
         }
 
-        private static void SubscribeToSceneLoadedEvent()
+        private static void SubscribeToSceneEvents()
         {
             SceneManager.sceneUnloaded += OnSceneUnloaded;
-            s_isSceneLoadedSubscribed = true;
+            s_sceneEventsSubscribed = true;
         }
 
         private static void OnSceneUnloaded(Scene scene)
@@ -92,8 +92,8 @@ namespace Aether
             if (Application.isPlaying == false)
                 return;
 
-            if (s_isSceneLoadedSubscribed == false)
-                SubscribeToSceneLoadedEvent();
+            if (s_sceneEventsSubscribed == false)
+                SubscribeToSceneEvents();
 
             if (m_initState == InitializationState.None)
             {

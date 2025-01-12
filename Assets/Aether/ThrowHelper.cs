@@ -8,7 +8,7 @@ namespace Aether
     {
         internal static void RepeatedMessageRegister(string messageHandlerName)
         {
-            throw new ArgumentException($"A CallbackAccept of message with name {messageHandlerName} already registered");
+            throw new ArgumentException($"A callback of message with name {messageHandlerName} already registered");
         }
 
         internal static void RepeatedHandlerRegister(string handlerName)
