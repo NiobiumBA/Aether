@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class MouseSpawnObject : NetworkBehaviour
 {
+    [NetworkMessageName("MouseSpawn")]
     private struct SpawnMessage : INetworkMessage
     {
         public Ray ray;

@@ -1,15 +1,31 @@
 ﻿using System;
+using System.Reflection;
 using UnityEngine;
 
 namespace Aether.Messages
 {
     public class MessageHandling
     {
-        // TODO Optimize string length. Add custom attribute which contains handler name
+        private static class MessageCache<TMessage>
+            where TMessage : INetworkMessage
+        {
+            public static string name;
+        }
+
         public static string GetMessageHandlerName<TMessage>()
             where TMessage : unmanaged, INetworkMessage
         {
-            return typeof(TMessage).FullName;
+            if (MessageCache<TMessage>.name == null)
+            {
+                Type type = typeof(TMessage);
+                NetworkMessageNameAttribute attribute = type.GetCustomAttribute<NetworkMessageNameAttribute>();
+                
+                string name = attribute == null ? type.FullName : attribute.CustomName;
+                MessageCache<TMessage>.name = name;
+                return name;
+            }
+
+            return MessageCache<TMessage>.name;
         }
 
         public unsafe static int GetMessageSize<TMessage>()

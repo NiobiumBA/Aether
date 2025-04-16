@@ -15,6 +15,7 @@ namespace Aether
             ClientUpdate, ClientFixedUpdate
         }
 
+        [NetworkMessageName("TransformInfo")]
         private struct TransformInfo : INetworkMessage, IEquatable<TransformInfo>
         {
             public Vector3 position;

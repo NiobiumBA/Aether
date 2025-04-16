@@ -14,6 +14,7 @@ namespace Aether
     /// </summary>
     public class NetworkGameObjects : SingletonBehaviour<NetworkGameObjects>
     {
+        [NetworkMessageName("Spawn")]
         private struct SpawnMessage : INetworkMessage
         {
             public GameObjectMessage originalGameObjectMessage;
@@ -23,17 +24,20 @@ namespace Aether
             public GameObjectMessage parentGameObjectMessage;
         }
 
+        [NetworkMessageName("Destroy")]
         private struct DestroyMessage : INetworkMessage
         {
             public GameObjectMessage gameObjectMessage;
         }
 
+        [NetworkMessageName("ChangeActive")]
         private struct ChangeGameObjectActiveMessage : INetworkMessage
         {
             public GameObjectMessage gameObjectMessage;
             public BoolMessage isActive;
         }
 
+        [NetworkMessageName("ChangeEnabled")]
         private struct ChangeBehaviourEnabledMessage : INetworkMessage
         {
             public BehaviourMessage behaviourMessage;

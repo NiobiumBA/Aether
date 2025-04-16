@@ -8,22 +8,26 @@ namespace Aether.SceneManagement
 {
     public class NetworkRoom : NetworkBehaviour
     {
+        [NetworkMessageName("AddClient")]
         private struct AddClientMessage : INetworkMessage
         {
             public int buildId;
             public uint roomNetId;
         }
 
+        [NetworkMessageName("ClientLoadCallback")]
         private struct ClientLoadCallbackMessage : INetworkMessage
         {
             public uint roomNetId;
         }
 
+        [NetworkMessageName("RemoveClient")]
         private struct RemoveClientMessage : INetworkMessage
         {
             public uint roomNetId;
         }
 
+        [NetworkMessageName("ClientUnloadCallback")]
         private struct ClientUnloadCallbackMessage : INetworkMessage
         {
             public uint roomNetId;

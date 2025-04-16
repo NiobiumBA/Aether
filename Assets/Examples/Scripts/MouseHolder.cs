@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class MouseHolder : NetworkBehaviour
 {
+    [NetworkMessageName("DragMouse")]
     private struct DragMessage : INetworkMessage
     {
         public Vector3 position;
