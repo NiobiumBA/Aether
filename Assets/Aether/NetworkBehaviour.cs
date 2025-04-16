@@ -58,7 +58,7 @@ namespace Aether
             if (string.IsNullOrEmpty(handlerName))
                 throw new ArgumentException(nameof(handlerName));
 
-            ushort handlerId = StableHash.GetHash(handlerName);
+            ushort handlerId = StableHash.GetHash16(handlerName);
 
             if (m_dataHandlers.ContainsKey(handlerId))
             {
@@ -78,7 +78,7 @@ namespace Aether
         {
             string handlerName = MessageHandling.GetMessageHandlerName<TMessage>();
 
-            ushort handlerId = StableHash.GetHash(handlerName);
+            ushort handlerId = StableHash.GetHash16(handlerName);
 
             if (m_dataHandlers.ContainsKey(handlerId))
             {
@@ -96,7 +96,7 @@ namespace Aether
 
         protected bool RemoveDataHandler(string handlerName)
         {
-            ushort handlerId = StableHash.GetHash(handlerName);
+            ushort handlerId = StableHash.GetHash16(handlerName);
 
             return m_dataHandlers.Remove(handlerId);
         }
@@ -166,7 +166,7 @@ namespace Aether
 
         private NetworkWriterPooled ProcessData(string handlerName)
         {
-            ushort handlerId = StableHash.GetHash(handlerName);
+            ushort handlerId = StableHash.GetHash16(handlerName);
 
             NetworkWriterPooled writer = NetworkWriterPool.Get();
             writer.WriteNetworkBehaviour(this);
