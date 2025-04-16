@@ -182,6 +182,7 @@ namespace Aether
 #if UNITY_SERVER
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = m_serverTickRate;
+            Time.fixedDeltaTime = 1f / m_serverTickRate;
 #endif
         }
     }
