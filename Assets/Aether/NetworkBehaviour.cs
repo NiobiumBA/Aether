@@ -16,22 +16,39 @@ namespace Aether
     {
         internal const string DataHandlerName = "BehaviourHandler";
 
-        // TODO Don't use string. Optimize data size
-        private readonly Dictionary<string, NetworkDataHandler> m_dataHandlers = new();
+        private readonly Dictionary<ushort, NetworkDataHandler> m_dataHandlers = new();
 
         public NetworkIdentity Identity { get; internal set; }
         public byte ComponentId { get; internal set; }
 
         internal static void DataHandler(NetworkConnection connection, NetworkReader reader)
         {
-            NetworkBehaviour behaviour = reader.ReadNetworkBehaviour();
-            string handlerName = reader.ReadString();
+            NetworkBehaviour behaviour;
+            ushort handlerId;
 
-            if (behaviour.m_dataHandlers.TryGetValue(handlerName, out var handler) == false)
-                throw new Exception($"Could not be found a data handler with name: {handlerName}");
+            try
+            {
+                behaviour = reader.ReadNetworkBehaviour();
+                handlerId = reader.ReadUShort();
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidNetworkDataException("Failed to read component and handler name", ex);
+            }
 
-            // TODO Use try catch
-            handler(connection, reader);
+            if (behaviour.m_dataHandlers.TryGetValue(handlerId, out var handler) == false)
+                throw new Exception($"Could not be found a data handler with name: {handlerId}");
+
+            try
+            {
+                handler(connection, reader);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Caught exception in object: {behaviour} in handler with name: {handlerId}\n" +
+                               $"{ex}");
+                connection.Disconnect();
+            }
         }
 
         protected void RegisterDataHandler(string handlerName, NetworkDataHandler handler)
@@ -41,12 +58,14 @@ namespace Aether
             if (string.IsNullOrEmpty(handlerName))
                 throw new ArgumentException(nameof(handlerName));
 
-            if (m_dataHandlers.ContainsKey(handlerName))
+            ushort handlerId = StableHash.GetHash(handlerName);
+
+            if (m_dataHandlers.ContainsKey(handlerId))
             {
                 ThrowHelper.RepeatedHandlerRegister(handlerName);
             }
 
-            m_dataHandlers[handlerName] = handler;
+            m_dataHandlers[handlerId] = handler;
         }
 
         protected void RegisterDataHandler(string handlerName, Action<NetworkReader> handler)
@@ -59,12 +78,14 @@ namespace Aether
         {
             string handlerName = MessageHandling.GetMessageHandlerName<TMessage>();
 
-            if (m_dataHandlers.ContainsKey(handlerName))
+            ushort handlerId = StableHash.GetHash(handlerName);
+
+            if (m_dataHandlers.ContainsKey(handlerId))
             {
                 ThrowHelper.RepeatedMessageRegister(handlerName);
             }
 
-            m_dataHandlers[handlerName] = MessageHandling.GetMessageHandler<TMessage>(callback);
+            m_dataHandlers[handlerId] = MessageHandling.GetMessageHandler<TMessage>(callback);
         }
 
         protected void RegisterMessageCallback<TMessage>(Action<TMessage> callback)
@@ -75,7 +96,9 @@ namespace Aether
 
         protected bool RemoveDataHandler(string handlerName)
         {
-            return m_dataHandlers.Remove(handlerName);
+            ushort handlerId = StableHash.GetHash(handlerName);
+
+            return m_dataHandlers.Remove(handlerId);
         }
 
         protected bool RemoveMessageCallback<TMessage>()
@@ -143,9 +166,11 @@ namespace Aether
 
         private NetworkWriterPooled ProcessData(string handlerName)
         {
+            ushort handlerId = StableHash.GetHash(handlerName);
+
             NetworkWriterPooled writer = NetworkWriterPool.Get();
             writer.WriteNetworkBehaviour(this);
-            writer.WriteString(handlerName);
+            writer.WriteUShort(handlerId);
             return writer;
         }
 

@@ -23,13 +23,13 @@ namespace Aether
         [UnityEngine.HideInCallstack]
         internal static void RepeatedMessageRegister(string messageHandlerName)
         {
-            throw new ArgumentException($"A callback of message with name {messageHandlerName} already registered");
+            throw new ArgumentException($"Please, use other message name instead of {messageHandlerName}");
         }
 
         [UnityEngine.HideInCallstack]
         internal static void RepeatedHandlerRegister(string handlerName)
         {
-            throw new ArgumentException($"A handler with name {handlerName} already registered");
+            throw new ArgumentException($"Please, use other handler name instead of {handlerName}");
         }
 
         [UnityEngine.HideInCallstack]
