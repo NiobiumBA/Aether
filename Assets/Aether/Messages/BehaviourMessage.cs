@@ -14,6 +14,9 @@
                 if (identity == null)
                     return null;
 
+                if (m_componentId >= identity.Components.Count)
+                    throw new InvalidNetworkDataException($"There is no component with id: {m_componentId}");
+
                 return identity.Components[m_componentId];
             }
         }
@@ -22,7 +25,7 @@
         {
             if (component == null)
             {
-                m_gameObjectMessage = new GameObjectMessage(null);
+                m_gameObjectMessage = new GameObjectMessage((NetworkIdentity)null);
                 m_componentId = 0;
                 return;
             }

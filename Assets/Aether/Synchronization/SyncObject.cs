@@ -16,6 +16,7 @@ namespace Aether.Synchronization
     /// </summary>
     public abstract class SyncObject : IDisposable
     {
+        // TODO Remove the dependency on NetworkApplication
         /// <summary>
         /// Synchronization provides by NetworkApplication.
         /// </summary>
@@ -35,7 +36,7 @@ namespace Aether.Synchronization
                     DisableOnClient();
 
                 s_clientDispatcher = NetworkApplication.ClientDispatcher;
-                s_clientDispatcher.RegisterDataHandler(c_dataHandlerName, DataHandlerOnClient);
+                s_clientDispatcher.RegisterHandler(c_dataHandlerName, DataHandlerOnClient);
             }
 
             public static void DisableOnClient()
@@ -57,7 +58,7 @@ namespace Aether.Synchronization
                     DisableOnServer();
 
                 s_serverDispatcher = NetworkApplication.ServerDispatcher;
-                s_serverDispatcher.RegisterDataHandler(c_dataHandlerName, DataHandlerOnServer);
+                s_serverDispatcher.RegisterHandler(c_dataHandlerName, DataHandlerOnServer);
             }
 
             public static void DisableOnServer()
@@ -73,11 +74,9 @@ namespace Aether.Synchronization
         }
 
 
-
         private const string c_dataHandlerName = nameof(SyncObject);
 
         private static readonly Dictionary<NetworkBehaviour, List<SyncObject>> s_syncObjects = new();
-
 
         public static IEnumerable<SyncObject> AllSyncObjects
         {
@@ -93,15 +92,6 @@ namespace Aether.Synchronization
             }
         }
 
-
-        public static bool TryGetSyncObjects(NetworkBehaviour owner, out IReadOnlyList<SyncObject> objects)
-        {
-            bool result = s_syncObjects.TryGetValue(owner, out List<SyncObject> list);
-            objects = list;
-            return result;
-        }
-
-
         private static void DataHandlerOnClient(NetworkReader reader)
         {
             SyncObject syncObj = null;
@@ -110,13 +100,12 @@ namespace Aether.Synchronization
             {
                 syncObj = ReadSyncObject(reader);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                ThrowHelper.IncorrectSyncObjectData();
+                ThrowHelper.IncorrectSyncObjectData(ex);
             }
 
             syncObj.OnChangeReceived(reader, NetworkApplication.ClientDispatcher.Connection);
-            syncObj.Changed?.Invoke();
         }
 
         private static void DataHandlerOnServer(NetworkConnection senderConn, NetworkReader reader)
@@ -131,20 +120,20 @@ namespace Aether.Synchronization
             {
                 syncObj = ReadSyncObject(reader);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                ThrowHelper.IncorrectSyncObjectData();
+                ThrowHelper.IncorrectSyncObjectData(ex);
             }
 
             if (syncObj.Mode != SyncMode.ClientOwner)
             {
-                ThrowHelper.InvalidSyncModeInDataHandler(SyncMode.ClientOwner);
+                ThrowHelper.InvalidSyncModeInDataHandler(syncObj, SyncMode.ClientOwner);
             }
 
             // Check if the sender is the owner
             if (syncObj.OwnerConnections.Contains(senderConn as ConnectionToClient) == false)
             {
-                throw new Exception($"The connection is not owner of this {nameof(SyncObject)}.");
+                throw new Exception($"The connection is not owner of this {nameof(SyncObject)} with script owner {syncObj.Owner}");
             }
 
             syncObj.OnChangeReceived(reader, senderConn);
@@ -153,13 +142,11 @@ namespace Aether.Synchronization
 
             ArraySegment<byte> data = remainingData.Slice(0, bytesRead);
 
-            foreach (NetworkConnection conn in NetworkApplication.ServerDispatcher.Connections)
+            foreach (NetworkConnection conn in syncObj.Owner.Identity.Room.Connections)
             {
                 if (senderConn != conn)
                     NetworkDispatcher.SendByConnection(conn, c_dataHandlerName, data);
             }
-
-            syncObj.Changed?.Invoke();
         }
 
         private static SyncObject ReadSyncObject(NetworkReader reader)
@@ -169,9 +156,6 @@ namespace Aether.Synchronization
 
             return s_syncObjects[component][syncObjectId];
         }
-
-
-        public event Action Changed;
 
         private readonly SyncMode m_mode;
         private readonly NetworkBehaviour m_owner;
@@ -207,8 +191,7 @@ namespace Aether.Synchronization
 
         protected SyncObject(NetworkBehaviour owner, SyncMode mode)
         {
-            if (owner == null)
-                throw new ArgumentNullException(nameof(owner));
+            ThrowHelper.ThrowIfNull(owner, nameof(owner));
 
             m_mode = mode;
             m_owner = owner;
@@ -221,7 +204,8 @@ namespace Aether.Synchronization
 
         public void SendInitData(NetworkConnection connection)
         {
-            ArraySegment<byte> data = GetDataWithSyncObjectInfo(GetInitData());
+            using NetworkWriterPooled writer = GetDataWithSyncObjectInfo(GetInitData());
+            ArraySegment<byte> data = writer.ToArraySegment();
 
             NetworkDispatcher.SendByConnection(connection, c_dataHandlerName, data);
         }
@@ -241,7 +225,8 @@ namespace Aether.Synchronization
 
         protected void SendChanges(ArraySegment<byte> data)
         {
-            ArraySegment<byte> resultData = GetDataWithSyncObjectInfo(data);
+            using NetworkWriterPooled resultWriter = GetDataWithSyncObjectInfo(data);
+            ArraySegment<byte> resultData = resultWriter.ToArraySegment();
 
             if (Mode == SyncMode.ClientOwner)
             {
@@ -252,7 +237,7 @@ namespace Aether.Synchronization
                 if (NetworkApplication.ClientConnected)
                 {
                     if (NetworkApplication.IsServer)
-                        NetworkApplication.ServerDispatcher.SendAllRemote(c_dataHandlerName, resultData);
+                        SendAllRemote(resultData);
                     else
                         NetworkApplication.ClientDispatcher.Send(c_dataHandlerName, resultData);
                 }
@@ -262,28 +247,30 @@ namespace Aether.Synchronization
                 if (NetworkApplication.IsServer == false)
                     throw new InvalidOperationException($"Attempt to send changes with mode {Mode}," +
                         $" but {nameof(NetworkApplication)} is not server");
-
-                NetworkApplication.ServerDispatcher.SendAllRemote(c_dataHandlerName, resultData);
+                
+                SendAllRemote(resultData);
             }
-
-            Changed?.Invoke();
         }
 
-        protected void SendChangesByConnection(NetworkConnection connection, ArraySegment<byte> data)
+        private void SendAllRemote(ArraySegment<byte> data)
         {
-            ArraySegment<byte> resultData = GetDataWithSyncObjectInfo(data);
-
-            connection.Send(resultData);
+            foreach (ConnectionToClient conn in Owner.Identity.Room.Connections)
+            {
+                if (conn is not LocalConnectionToClient)
+                {
+                    NetworkDispatcher.SendByConnection(conn, c_dataHandlerName, data);
+                }
+            }
         }
 
-        private ArraySegment<byte> GetDataWithSyncObjectInfo(ArraySegment<byte> data)
+        private NetworkWriterPooled GetDataWithSyncObjectInfo(ArraySegment<byte> data)
         {
-            NetworkWriter writer = new();
+            NetworkWriterPooled writer = NetworkWriterPool.Get();
             writer.WriteNetworkBehaviour(m_owner);
             writer.WriteByte(m_id);
             writer.WriteBytes(data);
 
-            return writer.ToArraySegment();
+            return writer;
         }
 
         private byte RegisterSyncObject()

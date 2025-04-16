@@ -28,11 +28,14 @@ public class ColorChanger : NetworkBehaviour
         ColorIdSetter(m_colorId);
     }
 
-    protected override void ServerStart()
+    private void Start()
     {
-        foreach (ConnectionToClient conn in NetworkApplication.ServerDispatcher.Connections)
+        if (NetworkApplication.IsServer)
         {
-            m_colorId.OwnerConnections.Add(conn);
+            foreach (ConnectionToClient conn in NetworkApplication.ServerDispatcher.Connections)
+            {
+                m_colorId.OwnerConnections.Add(conn);
+            }
         }
     }
 

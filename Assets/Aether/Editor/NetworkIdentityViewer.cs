@@ -12,10 +12,12 @@ namespace Aether.Editor
 
             EditorGUILayout.LabelField("InitState", identity.InitState.ToString());
 
+            string label = identity.NetId.ToString();
+
             if (identity.InitState == NetworkIdentity.InitializationState.OnScene)
-                EditorGUILayout.LabelField("SceneId", identity.SceneId.ToString());
+                EditorGUILayout.LabelField("SceneId", label);
             else if (identity.InitState == NetworkIdentity.InitializationState.AsPrefab)
-                EditorGUILayout.LabelField("AssetId", identity.AssetId.ToString());
+                EditorGUILayout.LabelField("AssetId", label);
         }
     }
 }

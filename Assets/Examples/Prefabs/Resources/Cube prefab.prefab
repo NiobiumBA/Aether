@@ -66,10 +66,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_clientSyncMethod: 0
-  m_syncTime: 0.1
-  m_positionSmoothTime: 0.1
-  m_rotationSmoothTime: 0.1
-  m_scaleSmoothTime: 0.1
+  m_syncTime: 0.025
+  m_positionSmoothTime: 0.025
+  m_rotationSmoothTime: 0.025
+  m_scaleSmoothTime: 0.025
 --- !u!33 &2646027797860103776
 MeshFilter:
   m_ObjectHideFlags: 0

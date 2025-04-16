@@ -7,8 +7,6 @@ namespace Aether
 {
     public class NetworkServerDispatcher : NetworkDispatcher
     {
-        public event Action<ConnectionToClient> OnAddConnection;
-
         private readonly List<ConnectionToClient> m_connections = new();
 
         public IReadOnlyList<ConnectionToClient> Connections => m_connections;
@@ -21,26 +19,21 @@ namespace Aether
         /// Add connection.
         /// If you want to remove one of Connections, disconnect it.
         /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="ArgumentException"> This connection is not active or has already been added. </exception>
         public void AddConnection(ConnectionToClient connection)
         {
-            if (connection == null)
-                throw new ArgumentNullException(nameof(connection));
+            ThrowHelper.ThrowIfNull(connection, nameof(connection));
 
             if (connection.IsActive == false)
                 ThrowHelper.ArgumentInactiveConnection(nameof(connection));
 
             if (m_connections.Contains(connection))
-                throw new ArgumentException($"{connection} has already been added", nameof(connection));
+                throw new ArgumentException($"Connection has already been added", nameof(connection));
 
             m_connections.Add(connection);
 
             connection.HandleData += ProcessDataHandlers;
             connection.OnForcedDisconnect += RemoveConnection;
             connection.OnSelfDisconnect += RemoveConnection;
-
-            OnAddConnection?.Invoke(connection);
         }
 
         public void SendAll(string handlerName, ArraySegment<byte> data)

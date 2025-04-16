@@ -1,13 +1,18 @@
 ﻿using Aether.Connections;
 using Aether.Messages;
+using Aether.SceneManagement;
 using Aether.Synchronization;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Aether
 {
-    public class NetworkGameObjectInteractions : SingletonNetworkBehaviour<NetworkGameObjectInteractions>
+    /// <summary>
+    /// Contains static methods of GameObjects interactions.
+    /// </summary>
+    public class NetworkGameObjects : SingletonBehaviour<NetworkGameObjects>
     {
         private struct SpawnMessage : INetworkMessage
         {
@@ -35,97 +40,96 @@ namespace Aether
             public BoolMessage enabled;
         }
 
-        private static Dictionary<uint, SpawnMessage> s_spawnedObjectsMessages = new();
-        private static Dictionary<uint, ChangeGameObjectActiveMessage> s_gameObjectActiveMessages = new();
-        private static Dictionary<uint, ChangeBehaviourEnabledMessage> s_behaviourEnabledMessages = new();
-        private static Dictionary<uint, DestroyMessage> s_destroyedObjectMessages = new();
+        private static Dictionary<(uint, NetworkRoom), SpawnMessage> s_spawnedObjectsMessages = new();
+        private static Dictionary<(uint, NetworkRoom), ChangeGameObjectActiveMessage> s_gameObjectActiveMessages = new();
+        private static Dictionary<(uint, NetworkRoom), ChangeBehaviourEnabledMessage> s_behaviourEnabledMessages = new();
+        private static Dictionary<(uint, NetworkRoom), DestroyMessage> s_destroyedObjectMessages = new();
 
         private static bool s_clientCallbacksRegistered = false;
+        private static bool s_eventsSubscribed = false;
 
-        public static GameObject Spawn(GameObject original, Vector3 position, Quaternion rotation, Transform parent)
+        // TODO Spawn by NetworkRoom instead of parent
+
+        /// <summary>
+        /// Spawn NetworkIdentity on a scene with parent
+        /// </summary>
+        /// <returns>Spawned NetworkIdentity</returns>
+        public static NetworkIdentity Spawn(NetworkIdentity original, Vector3 position, Quaternion rotation, NetworkIdentity parent)
         {
             ThrowHelper.ThrowIfNotServer(nameof(Spawn));
 
-            if (original == null)
-                throw new ArgumentNullException(nameof(original));
+            ThrowHelper.ThrowIfNull(original, nameof(original));
 
-            GameObject spawned = Instantiate(original, position, rotation, parent);
+            NetworkIdentity spawned = Instantiate(original, position, rotation, parent.transform);
 
-            if (spawned.TryGetComponent(out NetworkIdentity spawnedIdentity) == false)
-                ThrowHelper.GameObjectNotIdentifiable(spawned.name);
-
-            spawnedIdentity.InitializeOnScene(NetworkIdentity.GetSceneUniqueNetId());
-
-            GameObject parentGameObject = parent == null ? null : parent.gameObject;
+            spawned.InitializeOnScene(NetworkIdentity.GetSceneUniqueNetId());
 
             SpawnMessage message = new()
             {
-                originalGameObjectMessage = new GameObjectMessage(original),
-                netId = spawnedIdentity.SceneId,
+                originalGameObjectMessage = new GameObjectMessage(original.gameObject),
+                netId = spawned.NetId,
                 position = position,
                 rotation = rotation,
-                parentGameObjectMessage = new GameObjectMessage(parentGameObject)
+                parentGameObjectMessage = new GameObjectMessage(parent)
             };
 
-            s_spawnedObjectsMessages.Add(spawnedIdentity.SceneId, message);
+            s_spawnedObjectsMessages.Add((spawned.NetId, spawned.Room), message);
 
-            NetworkApplication.ServerDispatcher.SendMessageAllRemote(message);
+            SendMessageAll(spawned.Room, message);
 
             return spawned;
         }
 
-        public static GameObject Spawn(GameObject original, Transform parent)
+        public static NetworkIdentity Spawn(NetworkIdentity original, NetworkIdentity parent)
         {
             return Spawn(original, Vector3.zero, Quaternion.identity, parent);
         }
 
-        public static T Spawn<T>(T original, Vector3 position, Quaternion rotation, Transform parent)
+        public static T Spawn<T>(T original, Vector3 position, Quaternion rotation, NetworkIdentity parent)
             where T : NetworkBehaviour
         {
-            GameObject spawnedGameObject = Spawn(original.gameObject, position, rotation, parent);
+            NetworkIdentity spawnedGameObject = Spawn(original.Identity, position, rotation, parent);
 
             return spawnedGameObject.GetComponent<T>();
         }
 
-        public static T Spawn<T>(T original, Transform parent)
+        public static T Spawn<T>(T original, NetworkIdentity parent)
             where T : NetworkBehaviour
         {
             return Spawn(original, Vector3.zero, Quaternion.identity, parent);
         }
 
-        public static void ServerDestroy(GameObject obj)
+        public static void ServerDestroy(NetworkIdentity identity)
         {
             ThrowHelper.ThrowIfNotServer(nameof(ServerDestroy));
 
-            if (obj == null)
-                throw new ArgumentNullException(nameof(obj));
+            ThrowHelper.ThrowIfNull(identity, nameof(identity));
 
-            GameObjectMessage gameObjectMessage = new(obj);
+            GameObjectMessage gameObjectMessage = new(identity);
 
             DestroyMessage message = new()
             {
                 gameObjectMessage = gameObjectMessage
             };
 
-            NetworkApplication.ServerDispatcher.SendMessageAllRemote(message);
+            (uint, NetworkRoom) key = (identity.NetId, identity.Room);
 
-            uint netId = gameObjectMessage.NetId;
+            if (s_spawnedObjectsMessages.Remove(key) == false)
+                s_destroyedObjectMessages.Add(key, message);
 
-            if (s_spawnedObjectsMessages.Remove(netId) == false)
-                s_destroyedObjectMessages.Add(netId, message);
+            s_gameObjectActiveMessages.Remove(key);
+            s_behaviourEnabledMessages.Remove(key);
 
-            s_gameObjectActiveMessages.Remove(netId);
-            s_behaviourEnabledMessages.Remove(netId);
+            Destroy(identity);
 
-            Destroy(obj);
+            SendMessageAll(identity.Room, message);
         }
 
         public static void SetActive(GameObject obj, bool value)
         {
             ThrowHelper.ThrowIfNotServer(nameof(SetActive));
 
-            if (obj == null)
-                throw new ArgumentNullException(nameof(obj));
+            ThrowHelper.ThrowIfNull(obj, nameof(obj));
 
             GameObjectMessage gameObjectMessage = new(obj);
 
@@ -140,19 +144,23 @@ namespace Aether
 
             obj.SetActive(value);
 
-            s_gameObjectActiveMessages.Add(gameObjectMessage.NetId, message);
+            NetworkRoom room = gameObjectMessage.Identity.Room;
 
-            NetworkApplication.ServerDispatcher.SendMessageAllRemote(message);
+            s_gameObjectActiveMessages[(gameObjectMessage.NetId, room)] = message;
+
+            SendMessageAll(room, message);
         }
 
         public static void SetActiveForClient(ConnectionToClient connection, GameObject obj, bool value)
         {
             ThrowHelper.ThrowIfNotServer(nameof(SetActiveForClient));
 
-            if (obj == null)
-                throw new ArgumentNullException(nameof(obj));
+            ThrowHelper.ThrowIfNull(obj, nameof(obj));
 
             GameObjectMessage gameObjectMessage = new(obj);
+
+            if (gameObjectMessage.Identity.Room.Connections.Contains(connection) == false)
+                ThrowHelper.ConnectionObjIncorrect(obj);
 
             if (gameObjectMessage.Identity.InitState == NetworkIdentity.InitializationState.AsPrefab)
                 ThrowHelper.UnableChangePrefab(nameof(obj));
@@ -170,8 +178,7 @@ namespace Aether
         {
             ThrowHelper.ThrowIfNotServer(nameof(SetEnabled));
 
-            if (behaviour == null)
-                throw new ArgumentNullException(nameof(behaviour));
+            ThrowHelper.ThrowIfNull(behaviour, nameof(behaviour));
 
             if (behaviour.Identity.InitState == NetworkIdentity.InitializationState.AsPrefab)
                 ThrowHelper.UnableChangePrefab(nameof(behaviour));
@@ -186,17 +193,21 @@ namespace Aether
 
             behaviour.enabled = value;
 
-            s_behaviourEnabledMessages.Add(behaviour.Identity.SceneId, message);
+            NetworkRoom room = behaviour.Identity.Room;
 
-            NetworkApplication.ServerDispatcher.SendMessageAllRemote(message);
+            s_behaviourEnabledMessages[(behaviour.Identity.NetId, room)] = message;
+
+            SendMessageAll(room, message);
         }
 
         public static void SetEnabledForClient(ConnectionToClient connection, NetworkBehaviour behaviour, bool value)
         {
             ThrowHelper.ThrowIfNotServer(nameof(SetEnabledForClient));
 
-            if (behaviour == null)
-                throw new ArgumentNullException(nameof(behaviour));
+            ThrowHelper.ThrowIfNull(behaviour, nameof(behaviour));
+
+            if (behaviour.Identity.Room.Connections.Contains(connection) == false)
+                ThrowHelper.ConnectionObjIncorrect(behaviour);
 
             if (behaviour.Identity.InitState == NetworkIdentity.InitializationState.AsPrefab)
                 ThrowHelper.UnableChangePrefab(nameof(behaviour));
@@ -214,16 +225,12 @@ namespace Aether
 
         private static void OnSpawnGameObject(SpawnMessage message)
         {
-            GameObject parentGameObject = message.parentGameObjectMessage.Object;
-            Transform parent = parentGameObject == null ? null : parentGameObject.transform;
-
             GameObject spawned = Instantiate(message.originalGameObjectMessage.Object,
                                              message.position,
                                              message.rotation,
-                                             parent);
+                                             message.parentGameObjectMessage.Object.transform);
 
-            if (spawned.TryGetComponent(out NetworkIdentity identity) == false)
-                ThrowHelper.GameObjectNotIdentifiable(spawned.name);
+            NetworkIdentity identity = spawned.GetComponent<NetworkIdentity>();
 
             identity.InitializeOnScene(message.netId);
         }
@@ -246,12 +253,24 @@ namespace Aether
             behaviour.enabled = message.enabled;
         }
 
-        private static void SendMessagesByConnection<TMessage>(NetworkConnection connection, IEnumerable<TMessage> messages)
+        private static void SendMessageAll<TMessage>(NetworkRoom room, TMessage message)
             where TMessage : unmanaged, INetworkMessage
         {
-            foreach (TMessage message in messages)
+            foreach (ConnectionToClient conn in room.Connections)
             {
-                NetworkDispatcher.SendMessageByConnection(connection, message);
+                NetworkDispatcher.SendMessageByConnection(conn, message);
+            }
+        }
+
+        private static void SendMessagesByConnection<TMessage>(NetworkRoom room,
+                                                               NetworkConnection connection,
+                                                               IDictionary<(uint, NetworkRoom), TMessage> messages)
+            where TMessage : unmanaged, INetworkMessage
+        {
+            foreach (KeyValuePair<(uint, NetworkRoom room), TMessage> pair in messages)
+            {
+                if (pair.Key.room == room)
+                    NetworkDispatcher.SendMessageByConnection(connection, pair.Value);
             }
         }
 
@@ -278,45 +297,61 @@ namespace Aether
             s_clientCallbacksRegistered = false;
         }
 
-        private static void SendInitDataAll()
+        private static void SendInitDataAll(NetworkRoom room, ConnectionToClient connection)
         {
             foreach (SyncObject syncObj in SyncObject.AllSyncObjects)
             {
-                SendInitDataAllRemote(syncObj);
+                if (syncObj.Owner.Identity.Room == room)
+                {
+                    syncObj.SendInitData(connection);
+                }
             }
         }
 
-        private static void SendInitDataAllRemote(SyncObject syncObj)
+        private static void OnAddClientToRoom(NetworkRoom room, ConnectionToClient connection)
         {
-            foreach (ConnectionToClient conn in NetworkApplication.ServerDispatcher.Connections)
+            if (connection is not LocalConnectionToClient)
             {
-                if (conn is not LocalConnectionToClient)
-                    syncObj.SendInitData(conn);
-            }
-        }
-
-        protected internal override void OnConnect(NetworkConnection connection)
-        {
-            if (connection is ConnectionToClient and not LocalConnectionToClient)
-            {
-                SendMessagesByConnection(connection, s_spawnedObjectsMessages.Values);
-                SendMessagesByConnection(connection, s_gameObjectActiveMessages.Values);
-                SendMessagesByConnection(connection, s_behaviourEnabledMessages.Values);
-                SendMessagesByConnection(connection, s_destroyedObjectMessages.Values);
+                SendMessagesByConnection(room, connection, s_spawnedObjectsMessages);
+                SendMessagesByConnection(room, connection, s_gameObjectActiveMessages);
+                SendMessagesByConnection(room, connection, s_behaviourEnabledMessages);
+                SendMessagesByConnection(room, connection, s_destroyedObjectMessages);
 
                 if (SyncObject.EventSystem.EnabledOnServer)
-                    SendInitDataAll();
+                    SendInitDataAll(room, connection);
             }
         }
 
-        protected internal override void ClientStart()
+        private static void OnRoomLoad(NetworkRoom room)
         {
-            if (NetworkApplication.IsServer == false)
+            room.OnAddClient += connection => OnAddClientToRoom(room, connection);
+        }
+
+        private void OnEnable()
+        {
+            if (s_eventsSubscribed)
+                return;
+
+            // Use static method to avoid double subscribing
+            // because Awake invokes earlier then OnDisable
+            NetworkRoomManager.OnRoomLoad += OnRoomLoad;
+
+            s_eventsSubscribed = true;
+        }
+
+        protected override void Start()
+        {
+            base.Start();
+
+            if (NetworkApplication.IsClientOnly)
                 RegisterClientCallbacks();
         }
 
         private void OnDestroy()
         {
+            if (ShouldBeDestroyed)
+                return;
+            
             if (NetworkApplication.IsClientOnly)
                 RemoveClientCallbacks();
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
@@ -40,11 +41,35 @@ namespace Aether.Synchronization
             SendChanges((writer) => WriteAddOperationData(writer, range));
         }
 
-        public virtual void RemoveRange(IEnumerable<T> range)
+        /// <summary>
+        /// </summary>
+        /// <returns>Return true if all elements in range have been deleted, else false</returns>
+        public virtual bool RemoveRange(IEnumerable<T> range)
         {
-            RemoveRangeWithoutSend(range);
+            bool result = true;
 
-            SendChanges((writer) => WriteAddOperationData(writer, range));
+            bool[] successfulRemoving = new bool[range.Count()];
+
+            int i = 0;
+            foreach (T item in range)
+            {
+                bool currentSuccessful = Collection.Remove(item);
+                successfulRemoving[i] = currentSuccessful;
+
+                if (currentSuccessful == false)
+                    result = false;
+
+                i++;
+            }
+
+            IEnumerable<T> successRemoved = range
+                .Zip(successfulRemoving, (T item, bool successful) => (item, successful))
+                .Where(tuple => tuple.successful)
+                .Select(tuple => tuple.item);
+
+            SendChanges((writer) => WriteRemoveOperationData(writer, range));
+
+            return result;
         }
 
         public virtual void Add(T item)
@@ -146,7 +171,11 @@ namespace Aether.Synchronization
         protected virtual void ApplyRemoveOperation(NetworkReader reader)
         {
             List<T> removedRange = reader.ReadBlittableList<T>();
-            RemoveRangeWithoutSend(removedRange);
+            
+            foreach (T item in removedRange)
+            {
+                Collection.Remove(item);
+            }
         }
 
         protected virtual void WriteInitializationOperation(NetworkWriter writer)
@@ -187,15 +216,6 @@ namespace Aether.Synchronization
             foreach (T item in range)
             {
                 Collection.Add(item);
-            }
-        }
-
-        protected void RemoveRangeWithoutSend(IEnumerable<T> range)
-        {
-            foreach (T item in range)
-            {
-                if (Collection.Remove(item) == false)
-                    Debug.LogError($"Failed to remove {item}.");
             }
         }
 

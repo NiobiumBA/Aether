@@ -1,8 +1,8 @@
+using Aether.SceneManagement;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
-using System;
 
 namespace Aether
 {
@@ -15,12 +15,56 @@ namespace Aether
             None, AsPrefab, OnScene
         }
 
-        private static Dictionary<uint, NetworkIdentity> s_sceneIdentities = new();
+        public readonly struct SceneIdentityInfo : IEquatable<SceneIdentityInfo>
+        {
+            private readonly NetworkRoom m_room;
+            private readonly uint m_netId;
+
+            public readonly NetworkRoom Room => m_room;
+            public readonly uint NetId => m_netId;
+
+            public SceneIdentityInfo(NetworkRoom room, uint netId)
+            {
+                m_room = room;
+                m_netId = netId;
+            }
+
+            public readonly override bool Equals(object obj)
+            {
+                return obj is SceneIdentityInfo other && Equals(other);
+            }
+
+            public readonly override int GetHashCode()
+            {
+                return HashCode.Combine(m_room, m_netId);
+            }
+
+            public readonly override string ToString()
+            {
+                return $"(Room: ({Room}), NetId: {NetId})";
+            }
+
+            public readonly bool Equals(SceneIdentityInfo other)
+            {
+                Debug.Log("Equals!");
+                return m_room == other.m_room && m_netId == other.m_netId;
+            }
+        }
+
+        public interface IReadOnlyRoomDictionary : IReadOnlyDictionary<SceneIdentityInfo, NetworkIdentity>
+        {
+        }
+
+        public class RoomDictionary : Dictionary<SceneIdentityInfo, NetworkIdentity>, IReadOnlyRoomDictionary
+        {
+        }
+
+        private static RoomDictionary s_roomIdentities = new();
         private static Dictionary<uint, NetworkIdentity> s_assetIdentities;
-        private static bool s_sceneEventsSubscribed = false;
 
         public static IReadOnlyDictionary<uint, NetworkIdentity> AssetIdentities
         {
+            // TODO Calling does not load all assets in memory.
             get
             {
                 // In editor always find new assets.
@@ -34,12 +78,12 @@ namespace Aether
             }
         }
 
-        public static IReadOnlyDictionary<uint, NetworkIdentity> SceneIdentities => s_sceneIdentities;
+        public static IReadOnlyRoomDictionary RoomIdentities => s_roomIdentities;
 
         public static uint GetSceneUniqueNetId()
         {
-            IEnumerable<uint> netIds = SceneIdentities.Where((pair) => pair.Value.InitState != InitializationState.None)
-                                                      .Select((pair) => pair.Key);
+            IEnumerable<uint> netIds = s_roomIdentities.Where((pair) => pair.Value.InitState != InitializationState.None)
+                                                       .Select((pair) => pair.Key.NetId);
             uint idNew = 1;
 
             while (netIds.Contains(idNew))
@@ -52,37 +96,35 @@ namespace Aether
         {
             NetworkIdentity[] identities = Resources.FindObjectsOfTypeAll<NetworkIdentity>();
 
-            return identities.Where(identity => identity.InitState == InitializationState.AsPrefab)
-                             .ToDictionary(identity => identity.AssetId);
-        }
+            Dictionary<uint, NetworkIdentity>  result = identities.Where(identity => identity.InitState == InitializationState.AsPrefab)
+                                                                  .ToDictionary(identity => identity.NetId);
+            
+            foreach (NetworkIdentity identity in identities)
+            {
+                Resources.UnloadAsset(identity);
+            }
 
-        private static void SubscribeToSceneEvents()
-        {
-            SceneManager.sceneUnloaded += OnSceneUnloaded;
-            s_sceneEventsSubscribed = true;
-        }
-
-        private static void OnSceneUnloaded(Scene scene)
-        {
-            s_sceneIdentities = new Dictionary<uint, NetworkIdentity>();
+            return result;
         }
 
         // Use attributes to force Unity save changes in the editor.
-        [SerializeField, HideInInspector] private uint m_sceneId = 0;
-        [SerializeField, HideInInspector] private uint m_assetId = 0;
+        [SerializeField, HideInInspector] private uint m_netId = 0;
         [SerializeField, HideInInspector] private InitializationState m_initState = InitializationState.None;
-        private NetworkBehaviour[] m_components;
 
-        public uint SceneId => m_sceneId;
-        public uint AssetId => m_assetId;
+        private NetworkBehaviour[] m_components;
+        private NetworkRoom m_room;
+
+        public uint NetId => m_netId;
         public InitializationState InitState => m_initState;
         public IReadOnlyList<NetworkBehaviour> Components => m_components;
 
-        internal void InitializeOnScene(uint netId)
-        {
-            m_sceneId = netId;
+        public NetworkRoom Room => m_room;
 
-            s_sceneIdentities.Add(m_sceneId, this);
+        public void InitializeOnScene(uint netId)
+        {
+            m_netId = netId;
+
+            s_roomIdentities.Add(new SceneIdentityInfo(Room, m_netId), this);
 
             m_initState = InitializationState.OnScene;
         }
@@ -92,20 +134,21 @@ namespace Aether
             if (Application.isPlaying == false)
                 return;
 
-            if (s_sceneEventsSubscribed == false)
-                SubscribeToSceneEvents();
-
             if (m_initState == InitializationState.None)
             {
                 DebugNotValidated();
                 return;
             }
 
+            FindRoom();
+
+            SceneIdentityInfo key = new(Room, m_netId);
+
             if (m_initState == InitializationState.OnScene &&
-                s_sceneIdentities.Values.Contains(this) == false &&
-                s_sceneIdentities.ContainsKey(m_sceneId) == false)
+                s_roomIdentities.Values.Contains(this) == false &&
+                s_roomIdentities.ContainsKey(key) == false)
             {
-                s_sceneIdentities.Add(m_sceneId, this);
+                s_roomIdentities.Add(key, this);
             }
 
             InitializeComponents();
@@ -116,7 +159,8 @@ namespace Aether
             if (Application.isPlaying == false)
                 return;
 
-            s_sceneIdentities.Remove(SceneId);
+            SceneIdentityInfo key = new(Room, m_netId);
+            s_roomIdentities.Remove(key);
         }
 
         private void InitializeComponents()
@@ -135,6 +179,17 @@ namespace Aether
             }
         }
 
+        private void FindRoom()
+        {
+            List<NetworkRoom> rooms = new();
+            NetworkRoomManager.GetComponentsOnScene<NetworkRoom>(gameObject.scene, ref rooms);
+
+            if (rooms.Count == 0)
+                throw new Exception($"There are no {nameof(NetworkRoom)} scripts on the scene");
+
+            m_room = rooms[0];
+        }
+
         private void DebugNotValidated()
         {
             Debug.LogError($"Object {name} is not validated.", this);
@@ -150,7 +205,7 @@ namespace Aether
             NetworkIdentity[] sceneIdentities = FindObjectsByType<NetworkIdentity>(FindObjectsSortMode.None);
 
             RegenerateUninitialized(sceneIdentities);
-            RegenerateRepeated(sceneIdentities, true);
+            RegenerateRepeated(sceneIdentities);
 
             UnityEditor.SceneManagement.PrefabStage prefabStage = UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage();
             GameObject currentPrefab = prefabStage == null ? null : prefabStage.prefabContentsRoot;
@@ -159,7 +214,7 @@ namespace Aether
                 .Where(identity => identity.gameObject != currentPrefab).ToArray();
 
             RegenerateUninitialized(assetIdentities);
-            RegenerateRepeated(assetIdentities, false);
+            RegenerateRepeated(assetIdentities);
         }
 
         private void RegenerateUninitialized(NetworkIdentity[] identities)
@@ -171,25 +226,14 @@ namespace Aether
             }
         }
 
-        private void RegenerateRepeated(NetworkIdentity[] identities, bool useSceneId)
+        private void RegenerateRepeated(NetworkIdentity[] identities)
         {
             for (int i = 0; i < identities.Length - 1; i++)
             {
                 for (int j = i + 1; j < identities.Length; j++)
                 {
-                    bool equalsSceneId = identities[i].SceneId == identities[j].SceneId;
-                    bool equalsAssetId = identities[i].AssetId == identities[j].AssetId;
-
-                    if (useSceneId)
-                    {
-                        if (equalsSceneId)
-                            identities[i].GenerateId();
-                    }
-                    else
-                    {
-                        if (equalsAssetId)
-                            identities[i].GenerateId();
-                    }
+                    if (identities[i].NetId == identities[j].NetId)
+                        identities[i].GenerateId();
                 }
             }
         }
@@ -224,25 +268,20 @@ namespace Aether
 
         private void GenerateAssetUniqueNetId()
         {
-            IEnumerable<uint> netIds = Resources.FindObjectsOfTypeAll<NetworkIdentity>()
-                                                .Where(identity => identity != this)
-                                                .Select(identity => identity.AssetId);
-
-            m_assetId = GetUniqueId(netIds);
+            NetworkIdentity[] identities = Resources.FindObjectsOfTypeAll<NetworkIdentity>();
+            m_netId = GetUniqueId(identities);
         }
 
         private void GenerateSceneUniqueNetId()
         {
-            NetworkIdentity[] arrayIdentities = FindObjectsByType<NetworkIdentity>(FindObjectsSortMode.None);
-
-            IEnumerable<uint> netIds = arrayIdentities.Where(identity => identity != this)
-                                                      .Select(identity => identity.SceneId);
-
-            m_sceneId = GetUniqueId(netIds);
+            NetworkIdentity[] identities = FindObjectsByType<NetworkIdentity>(FindObjectsSortMode.None);
+            m_netId = GetUniqueId(identities);
         }
 
-        private static uint GetUniqueId(IEnumerable<uint> netIds)
+        private uint GetUniqueId(NetworkIdentity[] identities)
         {
+            IEnumerable<uint> netIds = identities.Where(identity => identity != this)
+                                                 .Select(identity => identity.NetId);
             uint idNew = 1;
 
             while (netIds.Contains(idNew))

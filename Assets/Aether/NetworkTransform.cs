@@ -6,6 +6,7 @@ using UnityEngine;
 
 namespace Aether
 {
+    // TODO Add mode where client is owner, server is observer
     [DisallowMultipleComponent]
     public class NetworkTransform : NetworkBehaviour
     {
@@ -22,9 +23,9 @@ namespace Aether
 
             public readonly bool Equals(TransformInfo other)
             {
-                return position.x == other.position.x &&
-                    rotation.x == other.rotation.x &&
-                    scale.x == other.scale.x;
+                return position == other.position &&
+                    rotation == other.rotation &&
+                    scale == other.scale;
             }
 
             public override readonly int GetHashCode()
@@ -216,10 +217,16 @@ namespace Aether
                     {
                         m_syncInfo.Value = currentMessage;
                         m_lastInfo = currentMessage;
+
+                        yield return new WaitForSeconds(SyncTime);
+                    }
+                    else
+                    {
+                        yield return null;
                     }
                 }
 
-                yield return new WaitForSeconds(m_syncTime);
+                yield return null;
             }
         }
 

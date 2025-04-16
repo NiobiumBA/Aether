@@ -1,51 +1,61 @@
 using Aether;
+using Aether.SceneManagement;
 using Aether.Synchronization;
 using Aether.Transports;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class TcpConnector : MonoBehaviour
 {
     [SerializeField] private InputField m_addressField;
-    [SerializeField] private Toggle m_startsServerToggle;
-    [SerializeField] private int m_sceneId;
+    [SerializeField] private int m_serverMainRoomBuildId;
+    [SerializeField] private int m_connectionRoomBuildId;
+    [SerializeField] private int m_mainMenuSceneBuildId;
 
-    private TcpTransport m_transport;
+    public void StartServer()
+    {
+        TcpTransport transport = new();
+
+        transport.OnServerConnect += connId => Debug.LogError($"Connected in transport: {connId}");
+
+        NetworkApplication.ActiveTransport = transport;
+
+        NetworkApplication.CreateServerDispatcher();
+
+        SyncObject.EventSystem.EnableOnServer();
+
+        transport.StartServer(m_addressField.text);
+
+        NetworkRoomManager.LoadRoomAsync(m_serverMainRoomBuildId, LoadSceneMode.Single);
+    }
 
     public void Connect()
     {
-        m_transport = new TcpTransport();
+        TcpTransport transport = new();
 
-        m_transport.OnClientConnect += LoadScene;
-
-        bool isServer = m_startsServerToggle.isOn;
-
-        NetworkApplication.ActiveTransport = m_transport;
+        NetworkApplication.ActiveTransport = transport;
 
         NetworkApplication.CreateClientDispatcher();
 
         SyncObject.EventSystem.EnableOnClient();
 
-        if (isServer)
-        {
-            NetworkApplication.CreateServerDispatcher();
-
-            SyncObject.EventSystem.EnableOnServer();
-
-            NetworkApplication.CreateLocalConnection();
-
-            m_transport.StartServer(m_addressField.text);
-
-            LoadScene();
-        }
-        else
-            m_transport.ClientConnect(m_addressField.text);
-
+        NetworkRoomManager.LoadRoomAsync(m_connectionRoomBuildId, LoadSceneMode.Single,
+            room => OnConnectionRoomLoaded(room, transport));
     }
 
-    private void LoadScene()
+    private void OnConnectionRoomLoaded(NetworkRoom room, NetworkTransport transport)
     {
-        SceneManager.LoadScene(m_sceneId);
+        transport.OnClientConnect += () => Debug.LogError("Connected in transport on client"); ;
+        transport.OnTransportError += OnTransportError;
+
+        transport.ClientConnect(m_addressField.text);
+        Debug.LogError("Room loaded");
+    }
+
+    private void OnTransportError(NetworkTransport.TransportError error)
+    {
+        SceneManager.LoadScene(m_mainMenuSceneBuildId);
+        Debug.LogError("Error in transport on client");
     }
 }

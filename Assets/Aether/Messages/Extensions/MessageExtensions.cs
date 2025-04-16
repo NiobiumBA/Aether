@@ -1,7 +1,19 @@
-﻿namespace Aether.Messages.Extensions
+﻿using UnityEngine;
+
+namespace Aether.Messages.Extensions
 {
-    public static class BehaviourMessageExtensions
+    public static class MessageExtensions
     {
+        public static void WriteGameObject(this NetworkWriter writer, GameObject gameObject)
+        {
+            writer.WriteMessage<GameObjectMessage>(new GameObjectMessage(gameObject));
+        }
+
+        public static GameObject ReadGameObject(this NetworkReader reader)
+        {
+            return reader.ReadMessage<GameObjectMessage>().Object;
+        }
+
         public static void WriteNetworkBehaviour(this NetworkWriter writer, NetworkBehaviour behaviour)
         {
             writer.WriteMessage<BehaviourMessage>(new BehaviourMessage(behaviour));

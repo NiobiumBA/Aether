@@ -11,38 +11,39 @@ namespace Aether
 
     public abstract class NetworkDispatcher
     {
-        /// <summary>
-        /// TKey: handler name
-        /// </summary>
-        private readonly Dictionary<string, NetworkDataHandler> m_dataHandlers = new();
-
         public static void SendByConnection(NetworkConnection connection, string handlerName, ArraySegment<byte> data)
         {
-            if (connection == null)
-                throw new ArgumentNullException(nameof(connection));
+            ThrowHelper.ThrowIfNull(connection, nameof(connection));
 
-            using NetworkWriterPooled writer = NetworkWriterPool.Get();
-            writer.WriteString(handlerName);
-            writer.WriteBytes(data);
+            if(string.IsNullOrEmpty(handlerName))
+                throw new ArgumentException(nameof(handlerName));
 
-            ArraySegment<byte> processedData = writer.ToArraySegment();
+            if (connection.IsActive == false)
+                ThrowHelper.ArgumentInactiveConnection(nameof(connection));
 
-            connection.Send(processedData);
-
-            NetworkDiagnostics.SentDataRecord.TryAdd(handlerName, processedData.Count);
+            SendByConnection(connection, handlerName, data.Count, (writer) => writer.WriteBytes(data));
         }
 
         public static void SendMessageByConnection<TMessage>(NetworkConnection connection, TMessage message)
             where TMessage : unmanaged, INetworkMessage
         {
-            if (connection == null)
-                throw new ArgumentNullException(nameof(connection));
+            ThrowHelper.ThrowIfNull(connection, nameof(connection));
+
+            if (connection.IsActive == false)
+                ThrowHelper.ArgumentInactiveConnection(nameof(connection));
 
             string handlerName = MessageHandling.GetMessageHandlerName<TMessage>();
+            int dataSize = MessageHandling.GetMessageSize<TMessage>();
+            
+            SendByConnection(connection, handlerName, dataSize, (writer) => writer.WriteMessage(message));
+        }
 
+        private static void SendByConnection(NetworkConnection connection, string handlerName, int dataSize, Action<NetworkWriter> writeAction)
+        {
             using NetworkWriterPooled writer = NetworkWriterPool.Get();
             writer.WriteString(handlerName);
-            writer.WriteMessage(message);
+            writer.WriteInt(dataSize);
+            writeAction(writer);
 
             ArraySegment<byte> processedData = writer.ToArraySegment();
 
@@ -51,14 +52,16 @@ namespace Aether
             NetworkDiagnostics.SentDataRecord.TryAdd(handlerName, processedData.Count);
         }
 
+        // TKey: handler name
+        private readonly Dictionary<string, NetworkDataHandler> m_dataHandlers = new();
+
         protected NetworkDispatcher()
         {
         }
 
-        public void RegisterDataHandler(string handlerName, NetworkDataHandler handler)
+        public void RegisterHandler(string handlerName, NetworkDataHandler handler)
         {
-            if (handler == null)
-                throw new ArgumentNullException(nameof(handler));
+            ThrowHelper.ThrowIfNull(handler, nameof(handler));
 
             if (string.IsNullOrEmpty(handlerName))
                 throw new ArgumentException(nameof(handlerName));
@@ -87,9 +90,6 @@ namespace Aether
         public bool RemoveHandler(string handlerName)
         {
             return m_dataHandlers.Remove(handlerName);
-
-            //if (m_dataHandlers.Remove(handlerName) == false)
-            //    throw new ArgumentException($"Could not be found a data handler with name: {handlerName}.");
         }
 
         public bool RemoveMessageCallback<TMessage>()
@@ -107,39 +107,39 @@ namespace Aether
             while (reader.Remaining > 0 && connection.IsActive)
             {
                 string handlerName;
+                int dataSize;
+
+                int startReaderPosition = reader.Position;
 
                 try
                 {
                     handlerName = reader.ReadString();
+                    dataSize = reader.ReadInt();
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError(ex);
-
+                    Debug.LogException(ex);
                     connection.Disconnect();
-
                     return;
                 }
-
-                int startReaderPosition = reader.Position;
 
                 if (m_dataHandlers.TryGetValue(handlerName, out NetworkDataHandler dataHandler) == false)
                 {
-                    connection.Disconnect();
-
                     Debug.LogError($"Could not be found a data handler with name: {handlerName}");
+                    connection.Disconnect();
                     return;
                 }
 
+                NetworkReader localReader = new(reader.ReadBytes(dataSize));
+
                 try
                 {
-                    dataHandler(connection, reader);
+                    dataHandler(connection, localReader);
                 }
                 catch (Exception exception)
                 {
+                    Debug.LogError($"Caught exception in handler with name: {handlerName}\n{exception}");
                     connection.Disconnect();
-
-                    Debug.LogError($"{exception}\nin handler with name: {handlerName}");
                     return;
                 }
 

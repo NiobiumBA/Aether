@@ -86,8 +86,6 @@ namespace Aether
 
             s_clientDispatcher = new NetworkClientDispatcher();
 
-            s_clientDispatcher.OnConnectionChange += OnClientConnectionChangeInvoke;
-
             OnClientDispatcherCreate?.Invoke();
         }
 
@@ -98,8 +96,6 @@ namespace Aether
         {
             if (IsClient == false)
                 return;
-
-            s_clientDispatcher.OnConnectionChange -= OnClientConnectionChangeInvoke;
 
             s_clientDispatcher.Connection?.Disconnect();
 
@@ -113,8 +109,6 @@ namespace Aether
 
             s_serverDispatcher = new NetworkServerDispatcher();
 
-            s_serverDispatcher.OnAddConnection += OnServerAddConnectionInvoke;
-
             OnServerDispatcherCreate?.Invoke();
         }
 
@@ -125,8 +119,6 @@ namespace Aether
         {
             if (IsServer == false)
                 return;
-
-            s_serverDispatcher.OnAddConnection -= OnServerAddConnectionInvoke;
 
             ConnectionToClient[] copyConnections = s_serverDispatcher.Connections.ToArray();
 
@@ -161,6 +153,8 @@ namespace Aether
             ConnectionToServer conn = new(s_activeTransport);
 
             s_clientDispatcher.Connection = conn;
+
+            OnClientConnectionChange?.Invoke(conn);
         }
 
         private static void ActiveTransportOnServerConnect(uint connectionId)
@@ -170,16 +164,10 @@ namespace Aether
             ConnectionToClient conn = new(s_activeTransport, connectionId);
 
             s_serverDispatcher.AddConnection(conn);
-        }
 
-        private static void OnClientConnectionChangeInvoke(ConnectionToServer conn)
-        {
-            OnClientConnectionChange?.Invoke(conn);
-        }
-
-        private static void OnServerAddConnectionInvoke(ConnectionToClient conn)
-        {
             OnServerAddConnection?.Invoke(conn);
+
+            UnityEngine.Debug.Log("ActiveTransportOnServerConnect");
         }
     }
 }

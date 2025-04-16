@@ -207,6 +207,7 @@ namespace Aether.Transports
                 ArgumentException exception = new(nameof(address));
                 ServerError error = new(exception);
                 OnTransportErrorEventInvoke(error);
+                return;
             }
             
             if (ServerStarted)
@@ -221,6 +222,7 @@ namespace Aether.Transports
             {
                 ServerError error = new(exception);
                 OnTransportErrorEventInvoke(error);
+                return;
             }
 
             m_serverStarted = true;

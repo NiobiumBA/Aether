@@ -42,16 +42,14 @@ namespace Aether.Synchronization
 
         public SyncValue(NetworkBehaviour owner, SyncMode mode, SetterConnectionDelegate setter) : base(owner, mode)
         {
-            if (setter == null)
-                throw new ArgumentNullException(nameof(setter));
+            ThrowHelper.ThrowIfNull(setter, nameof(setter));
 
             m_setter = setter;
         }
 
         public SyncValue(NetworkBehaviour owner, SyncMode mode, SetterDelegate setter) : base(owner, mode)
         {
-            if (setter == null)
-                throw new ArgumentNullException(nameof(setter));
+            ThrowHelper.ThrowIfNull(setter, nameof(setter));
 
             m_setter = (value, connection) => setter(value);
         }

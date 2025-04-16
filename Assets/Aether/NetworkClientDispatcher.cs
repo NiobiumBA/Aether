@@ -6,11 +6,6 @@ namespace Aether
 {
     public class NetworkClientDispatcher : NetworkDispatcher
     {
-        /// <summary>
-        /// Argument is the new connection.
-        /// </summary>
-        public event Action<ConnectionToServer> OnConnectionChange;
-
         private ConnectionToServer m_connection;
 
         /// <summary>
@@ -28,11 +23,9 @@ namespace Aether
                 if (value != null && value.IsActive == false)
                     ThrowHelper.ArgumentInactiveConnection(nameof(value));
 
-                OnConnectionChange?.Invoke(value);
-
                 if (m_connection != null)
                 {
-                    m_connection.HandleData -= InvokeDataHandlers;
+                    m_connection.HandleData -= ProcessDataHandlers;
                     m_connection.OnSelfDisconnect -= ResetConnection;
                     m_connection.OnForcedDisconnect -= ResetConnection;
 
@@ -43,22 +36,22 @@ namespace Aether
 
                 if (m_connection != null)
                 {
-                    m_connection.HandleData += InvokeDataHandlers;
+                    m_connection.HandleData += ProcessDataHandlers;
                     m_connection.OnSelfDisconnect += ResetConnection;
                     m_connection.OnForcedDisconnect += ResetConnection;
                 }
             }
         }
 
-        public bool Connected => Connection != null;
+        public bool Connected => Connection != null && Connection.IsActive;
 
         public NetworkClientDispatcher()
         {
         }
 
-        public void RegisterDataHandler(string handlerName, Action<NetworkReader> handler)
+        public void RegisterHandler(string handlerName, Action<NetworkReader> handler)
         {
-            RegisterDataHandler(handlerName, (conn, data) => handler(data));
+            RegisterHandler(handlerName, (conn, data) => handler(data));
         }
 
         public void RegisterMessageCallback<TMessage>(Action<TMessage> callback)
@@ -84,16 +77,9 @@ namespace Aether
             SendMessageByConnection(m_connection, message);
         }
 
-        private void InvokeDataHandlers(NetworkConnection conn, ArraySegment<byte> data)
-        {
-            ProcessDataHandlers(m_connection, data);
-        }
-
         private void ResetConnection(NetworkConnection conn)
         {
             m_connection = null;
-
-            OnConnectionChange?.Invoke(null);
         }
     }
 }

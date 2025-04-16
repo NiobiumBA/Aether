@@ -47,6 +47,7 @@ namespace Aether.Connections
         {
         }
 
+        // TODO Fix double Disconnection
         public override void Disconnect()
         {
             OnServerSelfDisconnect();

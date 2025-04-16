@@ -9,33 +9,27 @@ public class MouseSpawnObject : NetworkBehaviour
         public Ray ray;
     }
 
-    [SerializeField] private GameObject m_spawnObject;
+    [SerializeField] private NetworkIdentity m_spawnObject;
 
-    protected override void ServerStart()
+    private void Start()
     {
-        NetworkApplication.ServerDispatcher.RegisterMessageCallback<SpawnMessage>(Spawn);
-    }
-
-    private void OnDestroy()
-    {
-        if (NetworkApplication.IsServer)
-            NetworkApplication.ServerDispatcher.RemoveMessageCallback<SpawnMessage>();
+        RegisterMessageCallback<SpawnMessage>(Spawn);
     }
 
     protected override void ClientUpdate()
     {
-        if (Input.GetMouseButtonDown(0))
+        if (NetworkApplication.ClientConnected && Input.GetMouseButtonDown(0))
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 
-            if (Physics.Raycast(ray) == false)
+            if (gameObject.scene.GetPhysicsScene().Raycast(ray.origin, ray.direction) == false)
             {
                 SpawnMessage message = new()
                 {
                     ray = ray
                 };
 
-                NetworkApplication.ClientDispatcher.SendMessage(message);
+                SendMessageToServer(message);
             }
         }
     }
@@ -44,6 +38,6 @@ public class MouseSpawnObject : NetworkBehaviour
     {
         Vector3 pos = message.ray.GetPoint(5);
 
-        NetworkGameObjectInteractions.Spawn(m_spawnObject, pos, Quaternion.identity, transform);
+        NetworkGameObjects.Spawn(m_spawnObject, pos, Quaternion.identity, Identity);
     }
 }

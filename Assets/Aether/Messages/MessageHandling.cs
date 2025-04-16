@@ -5,17 +5,23 @@ namespace Aether.Messages
 {
     public class MessageHandling
     {
+        // TODO Optimize string length. Add custom attribute which contains handler name
         public static string GetMessageHandlerName<TMessage>()
             where TMessage : unmanaged, INetworkMessage
         {
             return typeof(TMessage).FullName;
         }
 
+        public unsafe static int GetMessageSize<TMessage>()
+            where TMessage : unmanaged, INetworkMessage
+        {
+            return sizeof(TMessage);
+        }
+
         public static NetworkDataHandler GetMessageHandler<TMessage>(NetworkMessageCallback<TMessage> messageCallback)
             where TMessage : unmanaged, INetworkMessage
         {
-            if (messageCallback == null)
-                throw new ArgumentNullException(nameof(messageCallback));
+            ThrowHelper.ThrowIfNull(messageCallback, nameof(messageCallback));
 
             return (conn, reader) =>
             {
@@ -28,7 +34,7 @@ namespace Aether.Messages
                 }
                 catch (Exception exception)
                 {
-                    throw new Exception($"Failed to read message of type {typeof(TMessage)}.", exception);
+                    throw new InvalidNetworkDataException($"Failed to read message of type {typeof(TMessage)}.", exception);
                 }
 
                 try
@@ -37,8 +43,8 @@ namespace Aether.Messages
                 }
                 catch (Exception exception)
                 {
+                    Debug.LogError($"Caught exception in handler with name: {GetMessageHandlerName<TMessage>()}\n{exception}");
                     conn.Disconnect();
-                    Debug.LogError($"{exception}\nin message handler with name: {GetMessageHandlerName<TMessage>()}");
                 }
             };
         }
