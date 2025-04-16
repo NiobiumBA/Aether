@@ -46,11 +46,10 @@ public class TcpConnector : MonoBehaviour
 
     private void OnConnectionRoomLoaded(NetworkRoom room, NetworkTransport transport)
     {
-        transport.OnClientConnect += () => Debug.LogError("Connected in transport on client"); ;
+        transport.OnClientConnect += () => Debug.LogError("Connected in transport on client");
         transport.OnTransportError += OnTransportError;
 
         transport.ClientConnect(m_addressField.text);
-        Debug.LogError("Room loaded");
     }
 
     private void OnTransportError(NetworkTransport.TransportError error)

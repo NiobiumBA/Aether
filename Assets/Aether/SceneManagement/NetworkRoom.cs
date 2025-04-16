@@ -64,8 +64,6 @@ namespace Aether.SceneManagement
             m_netId = roomNetId;
             s_maxRoomId = Math.Max(m_netId, s_maxRoomId);
 
-            UnityEngine.Debug.LogError($"Load room in memory: {roomNetId}");
-
             ClientLoadCallbackMessage message = new()
             {
                 roomNetId = roomNetId
@@ -183,8 +181,6 @@ namespace Aether.SceneManagement
                 RegisterHandlersOnServer();
 
             m_netId = s_maxRoomId++;
-
-            UnityEngine.Debug.LogError($"Load room in Awake: {m_netId}");
 
             NetworkRoomManager.SceneRoomLoad(this);
         }

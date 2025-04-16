@@ -166,8 +166,6 @@ namespace Aether
             s_serverDispatcher.AddConnection(conn);
 
             OnServerAddConnection?.Invoke(conn);
-
-            UnityEngine.Debug.Log("ActiveTransportOnServerConnect");
         }
     }
 }

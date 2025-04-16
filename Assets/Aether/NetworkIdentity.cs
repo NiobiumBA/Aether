@@ -46,7 +46,6 @@ namespace Aether
 
             public readonly bool Equals(SceneIdentityInfo other)
             {
-                Debug.Log("Equals!");
                 return m_room == other.m_room && m_netId == other.m_netId;
             }
         }
