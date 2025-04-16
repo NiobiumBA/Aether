@@ -97,12 +97,6 @@ namespace Aether
 
             Dictionary<uint, NetworkIdentity>  result = identities.Where(identity => identity.InitState == InitializationState.AsPrefab)
                                                                   .ToDictionary(identity => identity.NetId);
-            
-            foreach (NetworkIdentity identity in identities)
-            {
-                Resources.UnloadAsset(identity);
-            }
-
             return result;
         }
 

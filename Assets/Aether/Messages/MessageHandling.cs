@@ -43,7 +43,8 @@ namespace Aether.Messages
                 }
                 catch (Exception exception)
                 {
-                    Debug.LogError($"Caught exception in handler with name: {GetMessageHandlerName<TMessage>()}\n{exception}");
+                    Debug.LogError($"Caught exception in handler with name: {GetMessageHandlerName<TMessage>()}\n" +
+                                   $"{exception}");
                     conn.Disconnect();
                 }
             };
