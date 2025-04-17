@@ -1,6 +1,7 @@
 ﻿using Aether.Messages;
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace Aether
 {
@@ -94,16 +95,21 @@ namespace Aether
             return reader.ReadBlittable<TMessage>();
         }
 
-        public static string ReadString(this NetworkReader reader)
+        public static string ReadString(this NetworkReader reader, Encoding encoding)
         {
             int length = reader.ReadInt();
 
             if (length == NetworkWriterExtensions.c_sizeEnumerableIfNull)
                 return null;
 
-            byte[] bytes = reader.ReadBytes(length).ToArray();
+            ArraySegment<byte> bytes = reader.ReadBytes(length);
 
-            return NetworkWriterExtensions.StringEncoding.GetString(bytes);
+            return encoding.GetString(bytes);
+        }
+
+        public static string ReadString(this NetworkReader reader)
+        {
+            return ReadString(reader, NetworkWriterExtensions.StringEncoding);
         }
     }
 }

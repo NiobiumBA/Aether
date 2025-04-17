@@ -108,7 +108,7 @@ namespace Aether
             writer.WriteBlittable(message);
         }
 
-        public static void WriteString(this NetworkWriter writer, string text)
+        public static void WriteString(this NetworkWriter writer, string text, Encoding encoding)
         {
             if (text == null)
             {
@@ -116,10 +116,15 @@ namespace Aether
                 return;
             }
 
-            byte[] bytes = StringEncoding.GetBytes(text);
+            byte[] bytes = encoding.GetBytes(text);
 
             writer.WriteInt(bytes.Length);
             writer.WriteBytes(bytes);
+        }
+
+        public static void WriteString(this NetworkWriter writer, string text)
+        {
+            WriteString(writer, text, StringEncoding);
         }
     }
 }
