@@ -169,6 +169,9 @@ namespace Aether
         {
             if (NetworkApplication.IsClient)
                 ForAllNetworkBehaviours(behaviour => behaviour.ClientFixedUpdate());
+
+            if (NetworkApplication.IsServer)
+                ForAllNetworkBehaviours(behaviour => behaviour.ServerFixedUpdate());
         }
 
         protected virtual void OnApplicationQuit()

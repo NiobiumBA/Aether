@@ -192,5 +192,10 @@ namespace Aether
         /// Called on Update if NetworkApplication is server.
         /// </summary>
         protected internal virtual void ServerUpdate() { }
+
+        /// <summary>
+        /// Called on FixedUpdate if NetworkApplication is server.
+        /// </summary>
+        protected internal virtual void ServerFixedUpdate() { }
     }
 }
