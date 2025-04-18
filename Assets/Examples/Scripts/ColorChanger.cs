@@ -21,7 +21,7 @@ public class ColorChanger : NetworkBehaviour
 
     private void Awake()
     {
-        m_colorId = new SyncValue<int>(this, SyncMode.ClientOwner, ColorIdSetter);
+        m_colorId = new SyncValue<int>(this, SyncMode.ClientOwner, 0, ColorIdSetter);
 
         m_material = GetComponent<MeshRenderer>().material;
 

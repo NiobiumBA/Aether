@@ -52,8 +52,6 @@ namespace Aether
         private static bool s_clientCallbacksRegistered = false;
         private static bool s_eventsSubscribed = false;
 
-        // TODO Spawn by NetworkRoom instead of parent
-
         /// <summary>
         /// Spawn NetworkIdentity on a scene with parent
         /// </summary>
@@ -163,7 +161,7 @@ namespace Aether
 
             GameObjectMessage gameObjectMessage = new(obj);
 
-            if (gameObjectMessage.Identity.Room.Connections.Contains(connection) == false)
+            if (gameObjectMessage.Identity.Room.Clients.Contains(connection) == false)
                 ThrowHelper.ConnectionObjIncorrect(obj);
 
             if (gameObjectMessage.Identity.InitState == NetworkIdentity.InitializationState.AsPrefab)
@@ -210,7 +208,7 @@ namespace Aether
 
             ThrowHelper.ThrowIfNull(behaviour, nameof(behaviour));
 
-            if (behaviour.Identity.Room.Connections.Contains(connection) == false)
+            if (behaviour.Identity.Room.Clients.Contains(connection) == false)
                 ThrowHelper.ConnectionObjIncorrect(behaviour);
 
             if (behaviour.Identity.InitState == NetworkIdentity.InitializationState.AsPrefab)
@@ -260,7 +258,7 @@ namespace Aether
         private static void SendMessageAll<TMessage>(NetworkRoom room, TMessage message)
             where TMessage : unmanaged, INetworkMessage
         {
-            foreach (ConnectionToClient conn in room.Connections)
+            foreach (ConnectionToClient conn in room.Clients)
             {
                 NetworkDispatcher.SendMessageByConnection(conn, message);
             }

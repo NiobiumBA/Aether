@@ -42,7 +42,7 @@ namespace Aether.SceneManagement
         public event Action<ConnectionToClient> OnAddClient;
         public event Action<ConnectionToClient> OnRemoveClient;
 
-        private readonly List<ConnectionToClient> m_connections = new();
+        private readonly List<ConnectionToClient> m_clients = new();
         private uint m_netId;
 
         public uint NetId => m_netId;
@@ -51,7 +51,7 @@ namespace Aether.SceneManagement
 
         public Scene Scene => gameObject.scene;
 
-        public IReadOnlyList<ConnectionToClient> Connections => m_connections;
+        public IReadOnlyList<ConnectionToClient> Clients => m_clients;
 
 
         private static void AddOnClientHandler(AddClientMessage message)
@@ -85,7 +85,7 @@ namespace Aether.SceneManagement
 
             ConnectionToClient connToClient = connection as ConnectionToClient;
 
-            room.m_connections.Add(connToClient);
+            room.m_clients.Add(connToClient);
             room.OnAddClient?.Invoke(connToClient);
         }
 
@@ -117,7 +117,7 @@ namespace Aether.SceneManagement
 
             ConnectionToClient connToClient = connection as ConnectionToClient;
 
-            room.m_connections.Remove(connToClient);
+            room.m_clients.Remove(connToClient);
             room.OnRemoveClient?.Invoke(connToClient);
         }
 
@@ -128,12 +128,12 @@ namespace Aether.SceneManagement
             if (connection.IsActive == false)
                 ThrowHelper.ArgumentInactiveConnection(nameof(connection));
 
-            if (m_connections.Contains(connection))
+            if (m_clients.Contains(connection))
                 throw new ArgumentException("Connection has already been added", nameof(connection));
 
             if (connection is LocalConnectionToClient)
             {
-                m_connections.Add(connection);
+                m_clients.Add(connection);
                 OnAddClient?.Invoke(connection);
                 return;
             }
@@ -151,12 +151,12 @@ namespace Aether.SceneManagement
         {
             ThrowHelper.ThrowIfNotServer(nameof(AddClient));
 
-            if (m_connections.Contains(connection) == false)
+            if (m_clients.Contains(connection) == false)
                 throw new ArgumentException("Connection has not been added", nameof(connection));
 
             if (connection is LocalConnectionToClient)
             {
-                m_connections.Remove(connection);
+                m_clients.Remove(connection);
                 OnRemoveClient?.Invoke(connection);
                 return;
             }
@@ -191,8 +191,8 @@ namespace Aether.SceneManagement
 
         private void OnDestroy()
         {
-            ConnectionToClient[] tempConnections = new ConnectionToClient[m_connections.Count];
-            m_connections.CopyTo(tempConnections, 0);
+            ConnectionToClient[] tempConnections = new ConnectionToClient[m_clients.Count];
+            m_clients.CopyTo(tempConnections, 0);
 
             foreach (ConnectionToClient conn in tempConnections)
             {
@@ -225,7 +225,7 @@ namespace Aether.SceneManagement
 
             ConnectionToClient connToClient = connection as ConnectionToClient;
 
-            m_connections.Remove(connToClient);
+            m_clients.Remove(connToClient);
             OnRemoveClient?.Invoke(connToClient);
         }
 

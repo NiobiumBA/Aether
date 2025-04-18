@@ -17,8 +17,6 @@ public class RoomsDistributor : NetworkBehaviour
 
         room.AddClient(conn);
         m_rooms.Add(conn, room);
-
-        Debug.Log("Linked");
     }
 
     protected override void OnConnect(NetworkConnection conn)
@@ -28,8 +26,6 @@ public class RoomsDistributor : NetworkBehaviour
 
         NetworkRoomManager.LoadRoomAsync(m_roomBuildId,
             room => OnRoomLoad(room, conn as ConnectionToClient));
-
-        Debug.Log("Connected in distributor");
     }
 
     protected override void OnDisconnect(NetworkConnection connection)
@@ -41,7 +37,5 @@ public class RoomsDistributor : NetworkBehaviour
         m_rooms.Remove(connection as ConnectionToClient);
 
         NetworkRoomManager.UnloadRoomAsync(room);
-
-        Debug.Log("Disconnect in distributor");
     }
 }

@@ -16,8 +16,6 @@ namespace Aether.Synchronization
     /// </summary>
     public abstract class SyncObject : IDisposable
     {
-        // TODO Remove the dependency on NetworkApplication
-
         /// <summary>
         /// Synchronization provides by NetworkApplication.
         /// </summary>
@@ -145,7 +143,7 @@ namespace Aether.Synchronization
 
             ArraySegment<byte> data = remainingData.Slice(0, bytesRead);
 
-            foreach (NetworkConnection conn in syncObj.Owner.Identity.Room.Connections)
+            foreach (NetworkConnection conn in syncObj.Owner.Identity.Room.Clients)
             {
                 if (senderConn != conn)
                     NetworkDispatcher.SendByConnection(conn, c_dataHandlerName, data);
@@ -253,7 +251,7 @@ namespace Aether.Synchronization
 
         private void SendAllRemote(ArraySegment<byte> data)
         {
-            foreach (ConnectionToClient conn in Owner.Identity.Room.Connections)
+            foreach (ConnectionToClient conn in Owner.Identity.Room.Clients)
             {
                 if (conn is not LocalConnectionToClient)
                 {

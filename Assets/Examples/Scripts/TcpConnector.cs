@@ -17,8 +17,6 @@ public class TcpConnector : MonoBehaviour
     {
         TcpTransport transport = new();
 
-        transport.OnServerConnect += connId => Debug.LogError($"Connected in transport: {connId}");
-
         NetworkApplication.ActiveTransport = transport;
 
         NetworkApplication.CreateServerDispatcher();
@@ -46,7 +44,6 @@ public class TcpConnector : MonoBehaviour
 
     private void OnConnectionRoomLoaded(NetworkRoom room, NetworkTransport transport)
     {
-        transport.OnClientConnect += () => Debug.LogError("Connected in transport on client");
         transport.OnTransportError += OnTransportError;
 
         transport.ClientConnect(m_addressField.text);
