@@ -17,6 +17,7 @@ namespace Aether.Synchronization
     public abstract class SyncObject : IDisposable
     {
         // TODO Remove the dependency on NetworkApplication
+
         /// <summary>
         /// Synchronization provides by NetworkApplication.
         /// </summary>
@@ -133,7 +134,9 @@ namespace Aether.Synchronization
             // Check if the sender is the owner
             if (syncObj.OwnerConnections.Contains(senderConn as ConnectionToClient) == false)
             {
-                throw new Exception($"The connection is not owner of this {nameof(SyncObject)} with script owner {syncObj.Owner}");
+                // Do nothing
+                // The client may not know that he has already stopped owning this SyncObject.
+                return;
             }
 
             syncObj.OnChangeReceived(reader, senderConn);
@@ -171,8 +174,6 @@ namespace Aether.Synchronization
         {
             get
             {
-                ThrowHelper.ThrowIfNotServer(nameof(OwnerConnections));
-
                 if (Mode != SyncMode.ClientOwner)
                     ThrowHelper.ShouldUseWithSyncMode(nameof(OwnerConnections), SyncMode.ClientOwner);
 
@@ -180,8 +181,6 @@ namespace Aether.Synchronization
             }
             protected set
             {
-                ThrowHelper.ThrowIfNotServer(nameof(OwnerConnections));
-
                 if (Mode != SyncMode.ClientOwner)
                     ThrowHelper.ShouldUseWithSyncMode(nameof(OwnerConnections), SyncMode.ClientOwner);
 
