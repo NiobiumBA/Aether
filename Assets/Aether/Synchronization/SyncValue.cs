@@ -63,11 +63,11 @@ namespace Aether.Synchronization
             m_value = m_setter(receivedValue, connection);
         }
 
-        protected override ArraySegment<byte> GetInitData()
+        protected override NetworkWriterPooled GetInitData()
         {
-            NetworkWriter writer = new();
+            NetworkWriterPooled writer = NetworkWriterPool.Get();
             writer.WriteBlittable(m_value);
-            return writer.ToArraySegment();
+            return writer;
         }
 
         public static implicit operator T(SyncValue<T> value)

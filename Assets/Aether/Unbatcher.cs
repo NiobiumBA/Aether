@@ -9,7 +9,8 @@ namespace Aether
     /// </summary>
     public class Unbatcher
     {
-        private Queue<ArraySegment<byte>> m_queue = new();
+        private readonly Queue<ArraySegment<byte>> m_queue = new();
+        private readonly NetworkWriter m_writer = new();
         private int m_offset = 0;
         private bool m_readPacketSize = true;
         private int m_packetSize;
@@ -88,11 +89,11 @@ namespace Aether
             m_offset = secondPartSize;
             m_readPacketSize = true;
 
-            NetworkWriter writer = new();
-            writer.WriteBytes(firstPacketPart);
-            writer.WriteBytes(secondPacketPart);
+            m_writer.Clear();
+            m_writer.WriteBytes(firstPacketPart);
+            m_writer.WriteBytes(secondPacketPart);
 
-            data = writer.ToArraySegment();
+            data = m_writer.ToArraySegment();
             return true;
         }
     }

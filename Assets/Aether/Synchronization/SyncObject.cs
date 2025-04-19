@@ -201,7 +201,8 @@ namespace Aether.Synchronization
 
         public void SendInitData(NetworkConnection connection)
         {
-            using NetworkWriterPooled writer = GetDataWithSyncObjectInfo(GetInitData());
+            using NetworkWriterPooled initDataWriter = GetInitData();
+            using NetworkWriterPooled writer = GetDataWithSyncObjectInfo(initDataWriter.ToArraySegment());
             ArraySegment<byte> data = writer.ToArraySegment();
 
             NetworkDispatcher.SendByConnection(connection, c_dataHandlerName, data);
@@ -216,7 +217,7 @@ namespace Aether.Synchronization
                 s_syncObjects.Remove(m_owner);
         }
 
-        protected abstract ArraySegment<byte> GetInitData();
+        protected abstract NetworkWriterPooled GetInitData();
 
         protected abstract void OnChangeReceived(NetworkReader reader, NetworkConnection connection);
 
