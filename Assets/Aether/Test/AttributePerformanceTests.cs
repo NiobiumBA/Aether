@@ -29,7 +29,7 @@ namespace Aether.Test
         {
         }
 
-        private const int c_getAttributeCount = 10_000;
+        private const int c_getAttributeCount = 100_000;
 
         private static class AttributeCache<TMessage>
             where TMessage : INetworkMessage
