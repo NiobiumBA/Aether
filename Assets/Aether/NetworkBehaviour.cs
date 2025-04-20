@@ -111,7 +111,8 @@ namespace Aether
 
         protected void SendData(NetworkConnection connection, string handlerName, ArraySegment<byte> data)
         {
-            using NetworkWriterPooled writer = ProcessData(handlerName);
+            using NetworkWriterPooled writer = NetworkWriterPool.Get();
+            WriteBehaviourData(writer, handlerName);
             writer.WriteBytes(data);
 
             NetworkDispatcher.SendByConnection(connection, DataHandlerName, writer.ToArraySegment());
@@ -139,7 +140,8 @@ namespace Aether
         {
             string handlerName = MessageHandling.GetMessageHandlerName<TMessage>();
 
-            using NetworkWriterPooled writer = ProcessData(handlerName);
+            using NetworkWriterPooled writer = NetworkWriterPool.Get();
+            WriteBehaviourData(writer, handlerName);
             writer.WriteMessage(message);
 
             NetworkDispatcher.SendByConnection(connection, DataHandlerName, writer.ToArraySegment());
@@ -164,14 +166,12 @@ namespace Aether
             }
         }
 
-        private NetworkWriterPooled ProcessData(string handlerName)
+        private void WriteBehaviourData(NetworkWriter writer, string handlerName)
         {
             ushort handlerId = StableHash.GetHash16(handlerName);
 
-            NetworkWriterPooled writer = NetworkWriterPool.Get();
             writer.WriteNetworkBehaviour(this);
             writer.WriteUShort(handlerId);
-            return writer;
         }
 
         protected internal virtual void OnConnect(NetworkConnection connection) { }

@@ -201,11 +201,11 @@ namespace Aether.Synchronization
 
         public void SendInitData(NetworkConnection connection)
         {
-            using NetworkWriterPooled initDataWriter = GetInitData();
-            using NetworkWriterPooled writer = GetDataWithSyncObjectInfo(initDataWriter.ToArraySegment());
-            ArraySegment<byte> data = writer.ToArraySegment();
+            using NetworkWriterPooled writer = NetworkWriterPool.Get();
+            WriteSyncObjectInfo(writer);
+            WriteInitData(writer);
 
-            NetworkDispatcher.SendByConnection(connection, c_dataHandlerName, data);
+            NetworkDispatcher.SendByConnection(connection, c_dataHandlerName, writer.ToArraySegment());
         }
 
         public virtual void Dispose()
@@ -217,14 +217,17 @@ namespace Aether.Synchronization
                 s_syncObjects.Remove(m_owner);
         }
 
-        protected abstract NetworkWriterPooled GetInitData();
+        protected abstract void WriteInitData(NetworkWriter writer);
 
         protected abstract void OnChangeReceived(NetworkReader reader, NetworkConnection connection);
 
         protected void SendChanges(ArraySegment<byte> data)
         {
-            using NetworkWriterPooled resultWriter = GetDataWithSyncObjectInfo(data);
-            ArraySegment<byte> resultData = resultWriter.ToArraySegment();
+            using NetworkWriterPooled writer = NetworkWriterPool.Get();
+            WriteSyncObjectInfo(writer);
+            writer.WriteBytes(data);
+
+            ArraySegment<byte> resultData = writer.ToArraySegment();
 
             if (Mode == SyncMode.ClientOwner)
             {
@@ -261,14 +264,10 @@ namespace Aether.Synchronization
             }
         }
 
-        private NetworkWriterPooled GetDataWithSyncObjectInfo(ArraySegment<byte> data)
+        private void WriteSyncObjectInfo(NetworkWriter writer)
         {
-            NetworkWriterPooled writer = NetworkWriterPool.Get();
             writer.WriteNetworkBehaviour(m_owner);
             writer.WriteByte(m_id);
-            writer.WriteBytes(data);
-
-            return writer;
         }
 
         private byte RegisterSyncObject()

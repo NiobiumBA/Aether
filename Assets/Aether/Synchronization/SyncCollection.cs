@@ -117,11 +117,9 @@ namespace Aether.Synchronization
             return Collection.GetEnumerator();
         }
 
-        protected override NetworkWriterPooled GetInitData()
+        protected override void WriteInitData(NetworkWriter writer)
         {
-            NetworkWriterPooled writer = NetworkWriterPool.Get();
             WriteInitializationOperation(writer);
-            return writer;
         }
 
         protected override void OnChangeReceived(NetworkReader reader, NetworkConnection connection)
