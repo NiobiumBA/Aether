@@ -19,16 +19,17 @@ namespace Aether
             public float serverTime;
         }
 
-        private static bool m_eventSubscribed;
-        private static float m_timeDifference;
-        private static float m_oneWayDelay;
+        private static bool s_eventSubscribed;
+        private static float s_timeDifferenceCurrent;
+        private static float s_timeDifferenceTarget;
+        private static float s_timeDifferenceVelocity;
+        private static float s_oneWayDelay;
 
-        // TODO smoothing
         public static float TimeSinceServerStartup => NetworkApplication.IsServer ?
                                                       Time.realtimeSinceStartup :
-                                                      Time.realtimeSinceStartup - m_timeDifference;
+                                                      Time.realtimeSinceStartup - s_timeDifferenceCurrent;
 
-        public static float Ping => NetworkApplication.IsServer ? 0 : m_oneWayDelay;
+        public static float Ping => NetworkApplication.IsServer ? 0 : s_oneWayDelay;
 
         private static void PingMessageHandler(NetworkConnection connection, PingMessage pingMessage)
         {
@@ -44,9 +45,13 @@ namespace Aether
         private static void PongMessageCallback(PongMessage pongMessage)
         {
             float roundTripTime = TimeSinceServerStartup - pongMessage.clientTime;
-            m_oneWayDelay = roundTripTime * 0.5f;
 
-            m_timeDifference = Time.realtimeSinceStartup - (pongMessage.serverTime + m_oneWayDelay);
+            if (roundTripTime < 0)
+                return;
+            
+            s_oneWayDelay = roundTripTime * 0.5f;
+
+            s_timeDifferenceTarget = Time.realtimeSinceStartup - (pongMessage.serverTime + s_oneWayDelay);
         }
 
         private static void RegisterHandlers()
@@ -61,18 +66,27 @@ namespace Aether
                 NetworkApplication.ServerDispatcher.RegisterMessageCallback<PingMessage>(PingMessageHandler);
             }
 
-            m_eventSubscribed = true;
+            s_eventSubscribed = true;
         }
 
-        [SerializeField] private float m_pingMessageFrequency = 0.5f;
+        [SerializeField] private float m_pingMessageFrequency = 1f;
+        [SerializeField] private float m_timeSmoothFactor = 1f;
 
         private void Start()
         {
-            if (m_eventSubscribed == false)
+            if (s_eventSubscribed == false)
                 RegisterHandlers();
 
             if (NetworkApplication.IsClientOnly)
                 StartCoroutine(SendingPingMessages());
+        }
+
+        protected internal override void ClientUpdate()
+        {
+            s_timeDifferenceCurrent = Mathf.SmoothDamp(s_timeDifferenceCurrent,
+                                                       s_timeDifferenceTarget,
+                                                       ref s_timeDifferenceVelocity,
+                                                       m_timeSmoothFactor);
         }
 
         private IEnumerator SendingPingMessages()
