@@ -7,24 +7,22 @@ namespace Aether.Messages
     public class MessageHandling
     {
         private static class MessageCache<TMessage>
-            where TMessage : INetworkMessage
+            where TMessage : unmanaged, INetworkMessage
         {
-            public static string name;
+            public readonly static string name = GetName();
+
+            private static string GetName()
+            {
+                Type type = typeof(TMessage);
+                NetworkMessageNameAttribute attribute = type.GetCustomAttribute<NetworkMessageNameAttribute>();
+
+                return attribute == null ? type.FullName : attribute.CustomName;
+            }
         }
 
         public static string GetMessageHandlerName<TMessage>()
             where TMessage : unmanaged, INetworkMessage
         {
-            if (MessageCache<TMessage>.name == null)
-            {
-                Type type = typeof(TMessage);
-                NetworkMessageNameAttribute attribute = type.GetCustomAttribute<NetworkMessageNameAttribute>();
-                
-                string name = attribute == null ? type.FullName : attribute.CustomName;
-                MessageCache<TMessage>.name = name;
-                return name;
-            }
-
             return MessageCache<TMessage>.name;
         }
 
