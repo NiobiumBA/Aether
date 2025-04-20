@@ -318,6 +318,8 @@ GameObject:
   - component: {fileID: 1146314644}
   - component: {fileID: 1146314642}
   - component: {fileID: 1146314645}
+  - component: {fileID: 1146314646}
+  - component: {fileID: 1146314647}
   m_Layer: 0
   m_Name: Network
   m_TagString: Untagged
@@ -338,7 +340,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_netId: 1
-  m_assetId: 0
   m_initState: 2
 --- !u!114 &1146314642
 MonoBehaviour:
@@ -393,6 +394,32 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_errorText: {fileID: 1356463846}
+--- !u!114 &1146314646
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1146314639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: afb8268629a8b214380982c8811bb238, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_pingMessageFrequency: 1
+--- !u!114 &1146314647
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1146314639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dedfb9b9a1cb04a4da021eabb9375d5b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_sceneId: 0
 --- !u!1 &1356463844
 GameObject:
   m_ObjectHideFlags: 0

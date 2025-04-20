@@ -272,7 +272,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_netId: 1
-  m_assetId: 0
   m_initState: 2
 --- !u!4 &1328994374
 Transform:
@@ -396,6 +395,7 @@ GameObject:
   - component: {fileID: 1459752285}
   - component: {fileID: 1459752281}
   - component: {fileID: 1459752280}
+  - component: {fileID: 1459752286}
   m_Layer: 0
   m_Name: Network
   m_TagString: Untagged
@@ -441,7 +441,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_netId: 2
-  m_assetId: 0
   m_initState: 2
 --- !u!4 &1459752284
 Transform:
@@ -470,6 +469,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d44edc461034cd149ac033c418d06bb5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1459752286
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1459752278}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: afb8268629a8b214380982c8811bb238, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_pingMessageFrequency: 0.5
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
