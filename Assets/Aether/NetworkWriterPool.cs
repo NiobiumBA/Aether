@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Aether
 {
@@ -16,6 +17,9 @@ namespace Aether
 
         public static void Return(NetworkWriterPooled writer)
         {
+            if (m_writers.Contains(writer))
+                throw new ArgumentException("The writer has been already returned");
+
             writer.Clear();
             m_writers.Push(writer);
         }

@@ -1,6 +1,9 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.CompilerServices;
+#if UNITY_EDITOR || UNITY_ANDROID
+using Unity.Collections.LowLevel.Unsafe;
+#endif
 
 namespace Aether
 {
@@ -21,6 +24,9 @@ namespace Aether
 
         public ArraySegment<byte> ReadBytes(int count)
         {
+            if (count < 0)
+                throw new ArgumentOutOfRangeException(nameof(count));
+
             if (Position + count > m_buffer.Count)
                 throw new EndOfStreamException(nameof(ReadBytes));
 
@@ -31,6 +37,10 @@ namespace Aether
             return result;
         }
 
+        /// <summary>
+        /// Do not copy internal buffer
+        /// </summary>
+        /// <returns></returns>
         public ArraySegment<byte> ToArraySegment()
         {
             return m_buffer.Slice(Position);

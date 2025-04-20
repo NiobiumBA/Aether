@@ -41,6 +41,10 @@ namespace Aether
             Position += bytes.Count;
         }
 
+        /// <summary>
+        /// Do not copy internal buffer
+        /// </summary>
+        /// <returns></returns>
         public ArraySegment<byte> ToArraySegment()
         {
             return new ArraySegment<byte>(m_buffer, 0, Position);
