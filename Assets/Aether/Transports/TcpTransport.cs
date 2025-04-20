@@ -156,7 +156,7 @@ namespace Aether.Transports
 
             try
             {
-                client.GetStream().WriteAsync(data.Array, data.Offset, data.Count);
+                client.GetStream().Write(data.Array, data.Offset, data.Count);
             }
             catch (Exception exception)
             {
@@ -181,7 +181,7 @@ namespace Aether.Transports
 
             try
             {
-                m_selfClient.GetStream().WriteAsync(data.Array, data.Offset, data.Count);
+                m_selfClient.GetStream().Write(data.Array, data.Offset, data.Count);
             }
             catch (Exception exception)
             {
